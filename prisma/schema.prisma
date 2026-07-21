@@ -1,0 +1,423 @@
+// STLab — complete database schema
+// Core learning system + Exam system v1
+// PostgreSQL, managed with Prisma migrations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// CORE — identity, lab hardware, attendance
+// ============================================================
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+model Lab {
+  id        String   @id @default(cuid())
+  name      String
+  location  String?
+  createdAt DateTime @default(now())
+
+  students User[]
+  pcs      PC[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String // hashed (bcrypt)
+  role      Role     @default(STUDENT)
+  language  String   @default("en") // "en" | "ur" — settings page
+  labId     String?
+  lab       Lab?     @relation(fields: [labId], references: [id])
+  createdAt DateTime @default(now())
+
+  // Settings page preference toggles — plain columns rather than a
+  // separate model since these are exactly 3 fixed, well-known 1:1
+  // switches with no need for an extensible key-value store.
+  examReminders Boolean @default(true)
+  streakAlerts  Boolean @default(true)
+  showOnWall    Boolean @default(true)
+
+  sessions                    Session[]
+  submissions                 Submission[]
+  attempts                    ExamAttempt[]
+  examRecords                 ExamRecord[]
+  progress                    ProgressRecord[]
+  attendance                  Attendance[]
+  journalEntries              JournalEntry[]      @relation("JournalEntryStudent")
+  journalEntriesAuthored      JournalEntry[]      @relation("JournalEntryTeacher")
+  activitySegments            ActivitySegment[]
+  screenViewSessionsAsStudent ScreenViewSession[] @relation("ScreenViewStudent")
+  screenViewSessionsAsTeacher ScreenViewSession[] @relation("ScreenViewTeacher")
+  screenRecordingsAsStudent   ScreenRecording[]   @relation("ScreenRecordingStudent")
+  screenRecordingsAsTeacher   ScreenRecording[]   @relation("ScreenRecordingTeacher")
+}
+
+model PC {
+  id         String  @id @default(cuid())
+  hostname   String  @unique // "AILAB-PC-04"
+  labId      String
+  lab        Lab     @relation(fields: [labId], references: [id])
+  ipAddress  String?
+  macAddress String?
+
+  sessions           Session[]
+  activitySegments   ActivitySegment[]
+  screenViewSessions ScreenViewSession[]
+}
+
+model Session {
+  id            String    @id @default(cuid())
+  studentId     String
+  student       User      @relation(fields: [studentId], references: [id])
+  pcId          String
+  pc            PC        @relation(fields: [pcId], references: [id])
+  startedAt     DateTime  @default(now())
+  lastHeartbeat DateTime  @default(now()) // updated by the lab agent
+  endedAt       DateTime?
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+  LATE
+}
+
+enum AttendanceSource {
+  AUTO
+  MANUAL
+}
+
+model Attendance {
+  id          String           @id @default(cuid())
+  studentId   String
+  student     User             @relation(fields: [studentId], references: [id])
+  date        DateTime         @db.Date
+  status      AttendanceStatus @default(PRESENT)
+  sessionId   String? // first PC Session known to overlap this day's auto-mark, if any (backfilled — see markPresentIfUnset)
+  note        String? // reason for excused absence, etc.
+  checkedInAt DateTime? // exact instant of first present-marking event of the day
+  source      AttendanceSource @default(AUTO)
+
+  @@unique([studentId, date])
+}
+
+enum JournalCategory {
+  PARTICIPATION
+  BEHAVIOUR
+  EXTRA_ACTIVITY
+}
+
+// Dated, append-only teacher observations. Never updated/deleted, only
+// inserted; a student's per-category score is the average of their
+// entries' ratings, computed on read (src/lib/metrics.ts), never stored.
+model JournalEntry {
+  id        String          @id @default(cuid())
+  studentId String
+  student   User            @relation("JournalEntryStudent", fields: [studentId], references: [id])
+  teacherId String
+  teacher   User            @relation("JournalEntryTeacher", fields: [teacherId], references: [id])
+  category  JournalCategory
+  rating    Int // 1-5; range enforced by zod at the API layer
+  note      String?
+  createdAt DateTime        @default(now())
+
+  // Audit trail — nothing is ever hard-deleted or mutated in place.
+  // Deleting sets retractedAt (soft-delete, row never removed). Editing
+  // creates a brand-new row with supersedesId pointing at the original;
+  // the original's own fields never change. See src/lib/metrics.ts for
+  // how "active" (retractedAt null AND not superseded) is computed.
+  retractedAt  DateTime?
+  supersedesId String?        @unique
+  supersedes   JournalEntry?  @relation("JournalEntrySupersede", fields: [supersedesId], references: [id])
+  supersededBy JournalEntry?  @relation("JournalEntrySupersede")
+
+  @@index([studentId, category])
+}
+
+// Segment-based (not one row per heartbeat) — mirrors Session's open/close
+// shape. A heartbeat that matches the currently-open segment's PC/app/title
+// just bumps lastSeenAt/idleSeconds; a different focus closes it and opens
+// a new one (src/lib/activity.ts). idle/active classification is a
+// threshold applied in TS, not stored as a bool, so it can change without
+// redeploying the agent to all 12 PCs.
+model ActivitySegment {
+  id          String    @id @default(cuid())
+  studentId   String
+  student     User      @relation(fields: [studentId], references: [id])
+  pcId        String
+  pc          PC        @relation(fields: [pcId], references: [id])
+  appName     String
+  windowTitle String
+  idleSeconds Int
+  startedAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  endedAt     DateTime?
+
+  @@index([studentId, startedAt])
+}
+
+// ============================================================
+// CURRICULUM — modules, exercises, progress
+// ============================================================
+
+model CurriculumModule {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  order       Int
+  createdAt   DateTime @default(now())
+
+  exercises Exercise[]
+  exams     Exam[]
+  progress  ProgressRecord[]
+}
+
+model Exercise {
+  id          String           @id @default(cuid())
+  moduleId    String
+  module      CurriculumModule @relation(fields: [moduleId], references: [id])
+  title       String
+  description String?
+  dueDate     DateTime?
+
+  submissions Submission[]
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  REVIEWED
+  NEEDS_REVISION
+  COMPLETE
+}
+
+model Submission {
+  id          String           @id @default(cuid())
+  exerciseId  String
+  exercise    Exercise         @relation(fields: [exerciseId], references: [id])
+  studentId   String
+  student     User             @relation(fields: [studentId], references: [id])
+  content     String? // code, text, or uploaded file path
+  submittedAt DateTime         @default(now())
+  status      SubmissionStatus @default(SUBMITTED)
+  grade       Float?
+  feedback    String?
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETE
+  DEFENDED
+}
+
+model ProgressRecord {
+  id          String           @id @default(cuid())
+  studentId   String
+  student     User             @relation(fields: [studentId], references: [id])
+  moduleId    String
+  module      CurriculumModule @relation(fields: [moduleId], references: [id])
+  status      ProgressStatus   @default(NOT_STARTED)
+  completedAt DateTime?
+  notes       String?
+
+  @@unique([studentId, moduleId])
+}
+
+// ============================================================
+// EXAMS v1 — MCQ, lockdown, timer, retakes, audit trail
+//
+// Spec (docs/02-exam-spec.md):
+// - MCQ only, taken on lab PCs inside the system
+// - Teacher-set timer (durationMinutes) with auto-submit
+// - Teacher-set retake cooldown (cooldownHours), retakes until passed
+// - Question bank per exam, random draw of `questionsShown` per attempt
+// - Answers auto-saved per selection; changeable until Finish / timeout
+// - Crash-resume: attempt + answers persist, student resumes on any PC
+// - Pass mark 82 (stored per exam)
+// - Official score = latest attempt; ALL attempts kept for audit
+// - Once passed, sealed — no further attempts
+// ============================================================
+
+enum ExamStatus {
+  DRAFT // teacher still writing questions
+  PUBLISHED // visible to students, can be attempted
+  ARCHIVED // no longer offered, results preserved
+}
+
+model Exam {
+  id              String           @id @default(cuid())
+  moduleId        String
+  module          CurriculumModule @relation(fields: [moduleId], references: [id])
+  title           String
+  status          ExamStatus       @default(DRAFT)
+  durationMinutes Int // teacher-set timer
+  cooldownHours   Int              @default(24) // wait before retake
+  passMarkPercent Float            @default(82)
+  questionsShown  Int // e.g. 20 drawn from a bank of 30
+  createdAt       DateTime         @default(now())
+  opensAt         DateTime? // null = no restriction, available as soon as published
+  closesAt        DateTime? // null = no restriction; only gates NEW attempts, not ones already in progress
+
+  questions Question[]
+  attempts  ExamAttempt[]
+}
+
+model Question {
+  id     String  @id @default(cuid())
+  examId String
+  exam   Exam    @relation(fields: [examId], references: [id])
+  text   String
+  active Boolean @default(true) // retire bad questions without deleting
+  order  Int     @default(0) // position in the bank editor; reorder via up/down, not drag-and-drop
+
+  options QuestionOption[]
+  answers AttemptAnswer[]
+}
+
+model QuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id])
+  text       String
+  isCorrect  Boolean  @default(false)
+  order      Int
+
+  chosenIn AttemptAnswer[]
+}
+
+enum AttemptStatus {
+  IN_PROGRESS // taking it now (or crashed mid-exam — resumable)
+  SUBMITTED // student pressed Finish
+  AUTO_SUBMITTED // timer ran out
+}
+
+model ExamAttempt {
+  id            String        @id @default(cuid())
+  examId        String
+  exam          Exam          @relation(fields: [examId], references: [id])
+  studentId     String
+  student       User          @relation(fields: [studentId], references: [id])
+  attemptNumber Int
+  status        AttemptStatus @default(IN_PROGRESS)
+  startedAt     DateTime      @default(now())
+  expiresAt     DateTime // startedAt + duration; timer survives crashes
+  finishedAt    DateTime?
+  questionIds   Json // the random draw for THIS attempt, frozen at start
+  scorePercent  Float? // computed at submit; null while in progress
+  passed        Boolean?
+  pcHostname    String? // which machine it was (last) taken on
+
+  answers AttemptAnswer[]
+
+  @@unique([examId, studentId, attemptNumber])
+  @@index([examId, studentId])
+}
+
+// One row per question per attempt — updated live as the student selects.
+// This IS the auto-save + crash-resume mechanism.
+model AttemptAnswer {
+  id         String          @id @default(cuid())
+  attemptId  String
+  attempt    ExamAttempt     @relation(fields: [attemptId], references: [id])
+  questionId String
+  question   Question        @relation(fields: [questionId], references: [id])
+  optionId   String? // null = not answered yet
+  option     QuestionOption? @relation(fields: [optionId], references: [id])
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([attemptId, questionId])
+}
+
+// The single official record per student per exam — dashboards,
+// transcripts, certificates. Points at the latest attempt.
+model ExamRecord {
+  id              String    @id @default(cuid())
+  examId          String
+  studentId       String
+  student         User      @relation(fields: [studentId], references: [id])
+  latestAttemptId String    @unique
+  scorePercent    Float
+  passed          Boolean
+  sealedAt        DateTime? // set when passed — no further attempts
+  verificationId  String    @unique @default(cuid()) // certificates / QR
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([examId, studentId])
+}
+
+// ============================================================
+// SCREEN VIEW — on-demand teacher screen-viewing (phase 4)
+// ============================================================
+
+// A teacher-initiated, on-demand live view of one student's screen.
+// lastViewedAt is bumped by the TEACHER's own /live poll, not by the
+// agent's frame upload — that's the real "is someone still watching"
+// liveness signal. The agent-facing status route self-closes a session
+// whose lastViewedAt has gone stale (teacher closed the tab without
+// clicking Stop), so a student can never be left captured/overlaid
+// indefinitely just because the browser side vanished. See
+// src/lib/screenView.ts.
+model ScreenViewSession {
+  id              String    @id @default(cuid())
+  studentId       String
+  student         User      @relation("ScreenViewStudent", fields: [studentId], references: [id])
+  teacherId       String
+  teacher         User      @relation("ScreenViewTeacher", fields: [teacherId], references: [id])
+  pcId            String
+  pc              PC        @relation(fields: [pcId], references: [id])
+  startedAt       DateTime  @default(now())
+  lastViewedAt    DateTime?
+  saveRequestedAt DateTime? // instant "Save this session" was clicked; null if never saved
+  endedAt         DateTime?
+
+  recording ScreenRecording?
+
+  @@index([studentId, endedAt])
+  @@index([pcId, endedAt])
+}
+
+// Created the instant "Save this session" is clicked — at most one per
+// ScreenViewSession. Frames attach only from that point forward; nothing
+// shown live before the click is ever recoverable.
+model ScreenRecording {
+  id        String                 @id @default(cuid())
+  sessionId String                 @unique
+  session   ScreenViewSession      @relation(fields: [sessionId], references: [id])
+  studentId String
+  student   User                   @relation("ScreenRecordingStudent", fields: [studentId], references: [id])
+  teacherId String
+  teacher   User                   @relation("ScreenRecordingTeacher", fields: [teacherId], references: [id])
+  createdAt DateTime               @default(now())
+
+  frames ScreenRecordingFrame[]
+
+  @@index([teacherId])
+}
+
+// Metadata only — the JPEG bytes live on disk under
+// SCREEN_RECORDINGS_DIR/<recordingId>/<frameId>.jpg (src/lib/screenStorage.ts),
+// never in Postgres, to avoid DB/backup bloat for indefinite-retention
+// image data. Retention is indefinite by confirmed decision — a tradeoff
+// worth revisiting before a real multi-school deployment, not something
+// this schema enforces or auto-expires.
+model ScreenRecordingFrame {
+  id          String          @id @default(cuid())
+  recordingId String
+  recording   ScreenRecording @relation(fields: [recordingId], references: [id])
+  capturedAt  DateTime        @default(now())
+
+  @@index([recordingId, capturedAt])
+}

@@ -1,0 +1,31 @@
+@media print {
+  .side,
+  .hamburger-btn,
+  .nav-scrim,
+  .crumb,
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .content {
+    padding: 0 !important;
+  }
+  .shell {
+    display: block;
+  }
+  .card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+    break-inside: avoid;
+  }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  th,
+  td {
+    border: 1px solid #ccc;
+  }
+}

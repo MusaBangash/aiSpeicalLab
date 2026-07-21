@@ -1,0 +1,7 @@
+{
+  "server_url": "http://192.168.1.10:3000",
+  "api_key": "CHANGE_ME_matches_AGENT_API_KEY",
+  "hostname": "AILAB-PC-01",
+  "heartbeat_seconds": 60,
+  "screen_view_poll_seconds": 2
+}

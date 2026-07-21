@@ -1,0 +1,9 @@
+node_modules/
+.next/
+.env
+*.log
+prisma/dev.db
+__pycache__/
+*.pyc
+backups/
+var/screen-recordings/

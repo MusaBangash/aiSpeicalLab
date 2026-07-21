@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ananas — AI Engineering Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#E8A317; --gold-deep:#B97B0C; --gold-dark:#7A5107;
+    --gold-soft:#FBEED3; --gold-mist:#FDF6E4;
+    --cream:#FCF8EF; --card:#FFFFFF; --line:#F0E6CF; --line-2:#E6D8B8;
+    --leaf:#1B4D3E; --leaf-soft:#E3EFE9;
+    --ink:#372C17; --muted:#94815D; --faint:#C4B48D;
+    --coral:#D85A30; --coral-soft:#FBEAE2;
+    --sans:'Outfit', -apple-system, sans-serif;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --shadow:0 2px 12px rgba(185,123,12,.07), 0 1px 3px rgba(55,44,23,.05);
+    --shadow-lg:0 8px 30px rgba(185,123,12,.12);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ background:var(--cream); }
+  body{ font-family:var(--sans); background:var(--cream); color:var(--ink); min-height:100vh; -webkit-font-smoothing:antialiased; }
+  svg{ display:block; }
+  button{ font-family:var(--sans); }
+  ::selection{ background:var(--gold); color:#fff; }
+  @media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
+
+  .shell{ display:flex; min-height:100vh; }
+
+  /* ============ SIDEBAR ============ */
+  .side{
+    width:242px; flex-shrink:0; background:var(--card); border-right:1px solid var(--line);
+    display:flex; flex-direction:column; padding:26px 16px 22px; position:sticky; top:0; height:100vh;
+  }
+  .logo{ display:flex; align-items:center; gap:12px; padding:0 10px 26px; }
+  .logo-mark{ width:40px; height:40px; flex-shrink:0; }
+  .logo-name{ font-size:18px; font-weight:800; letter-spacing:-.02em; }
+  .logo-name em{ font-style:normal; color:var(--gold-deep); }
+  .logo-sub{ font-size:10.5px; color:var(--muted); font-weight:500; letter-spacing:.06em; text-transform:uppercase; margin-top:1px; }
+
+  .nav-label{ font-size:10.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); padding:14px 12px 8px; }
+  .nav-item{
+    display:flex; align-items:center; gap:12px; padding:11px 12px; border-radius:11px; cursor:pointer;
+    color:var(--muted); font-size:14.5px; font-weight:500; transition:background .18s, color .18s; position:relative; margin-bottom:2px;
+    border:none; background:none; width:100%; text-align:left;
+  }
+  .nav-item:hover{ background:var(--gold-mist); color:var(--ink); }
+  .nav-item.active{ background:var(--gold-soft); color:var(--gold-dark); font-weight:600; }
+  .nav-item.active::before{
+    content:""; position:absolute; left:-16px; top:8px; bottom:8px; width:4px; border-radius:0 4px 4px 0; background:var(--gold);
+  }
+  .nav-item .ic{ width:20px; height:20px; flex-shrink:0; }
+  .nav-badge{ margin-left:auto; background:var(--gold); color:#fff; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:20px; }
+
+  .side-foot{ margin-top:auto; border-top:1px solid var(--line); padding-top:16px; display:flex; align-items:center; gap:11px; padding-left:10px; }
+  .me-avatar{ width:38px; height:38px; border-radius:50%; background:var(--gold); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13.5px; }
+  .me-name{ font-size:13.5px; font-weight:600; }
+  .me-role{ font-size:11px; color:var(--muted); }
+
+  /* ============ MAIN ============ */
+  .content{ flex:1; padding:30px 38px 70px; min-width:0; }
+  .crumb{ display:flex; align-items:center; justify-content:space-between; margin-bottom:26px; }
+  .crumb h1{ font-size:24px; font-weight:700; letter-spacing:-.02em; }
+  .crumb .date{ font-family:var(--mono); font-size:12px; color:var(--muted); }
+
+  .page{ display:none; }
+  .page.show{ display:block; animation:pagein .4s cubic-bezier(.2,.7,.3,1); }
+  @keyframes pagein{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
+
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); }
+
+  /* ---- Dashboard ---- */
+  .hero-grid{ display:grid; grid-template-columns:1.25fr 1fr 1fr; gap:16px; margin-bottom:16px; }
+  .ring-card{ padding:22px; display:flex; align-items:center; gap:22px; }
+  .ring-wrap{ position:relative; width:118px; height:118px; flex-shrink:0; }
+  .ring-num{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .ring-num .n{ font-size:25px; font-weight:800; letter-spacing:-.03em; }
+  .ring-num .l{ font-size:10.5px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.08em; }
+  .ring-txt h3{ font-size:16.5px; font-weight:700; margin-bottom:5px; }
+  .ring-txt p{ font-size:13px; color:var(--muted); line-height:1.55; }
+  .mini-card{ padding:20px 22px; display:flex; flex-direction:column; }
+  .mini-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .mini-icon{ width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; }
+  .mini-icon.g{ background:var(--gold-soft); color:var(--gold-deep); }
+  .mini-icon.l{ background:var(--leaf-soft); color:var(--leaf); }
+  .mini-num{ font-size:27px; font-weight:800; letter-spacing:-.03em; }
+  .mini-label{ font-size:12.5px; color:var(--muted); font-weight:500; margin-top:2px; }
+  .streak-dots{ display:flex; gap:5px; margin-top:auto; padding-top:14px; }
+  .sdot{ width:10px; height:10px; border-radius:3px; background:var(--gold); }
+  .sdot.off{ background:var(--line-2); }
+
+  .duo{ display:grid; grid-template-columns:1.6fr 1fr; gap:16px; }
+  .continue-card{ padding:24px; position:relative; overflow:hidden; }
+  .continue-card::after{
+    content:""; position:absolute; right:-40px; top:-40px; width:170px; height:170px; border-radius:50%;
+    background:var(--gold-mist); z-index:0;
+  }
+  .cc-inner{ position:relative; z-index:1; }
+  .cc-tag{ display:inline-flex; align-items:center; gap:6px; background:var(--gold-soft); color:var(--gold-dark); font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:20px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:14px; }
+  .cc-title{ font-size:20px; font-weight:700; margin-bottom:6px; }
+  .cc-sub{ font-size:13.5px; color:var(--muted); margin-bottom:18px; }
+  .bar{ height:9px; border-radius:6px; background:var(--gold-mist); overflow:hidden; margin-bottom:18px; }
+  .bar-fill{ height:100%; border-radius:6px; background:linear-gradient(90deg, var(--gold), var(--gold-deep)); width:0; transition:width 1s cubic-bezier(.2,.7,.3,1); }
+  .btn{
+    display:inline-flex; align-items:center; gap:9px; background:var(--gold); color:#fff; border:none;
+    font-size:14px; font-weight:700; padding:12px 22px; border-radius:12px; cursor:pointer;
+    box-shadow:0 4px 14px rgba(232,163,23,.35); transition:transform .15s, box-shadow .15s;
+  }
+  .btn:hover{ transform:translateY(-2px); box-shadow:0 7px 20px rgba(232,163,23,.45); }
+  .btn.ghost{ background:var(--card); color:var(--gold-dark); border:1.5px solid var(--line-2); box-shadow:none; }
+  .btn.ghost:hover{ border-color:var(--gold); }
+
+  .feed-card{ padding:22px; }
+  .feed-title{ font-size:15px; font-weight:700; margin-bottom:14px; }
+  .feed-item{ display:flex; gap:12px; padding:10px 0; border-bottom:1px solid var(--gold-mist); }
+  .feed-item:last-child{ border-bottom:none; }
+  .feed-dot{ width:32px; height:32px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .feed-dot.g{ background:var(--gold-soft); color:var(--gold-deep); }
+  .feed-dot.l{ background:var(--leaf-soft); color:var(--leaf); }
+  .feed-t{ font-size:13.5px; font-weight:600; line-height:1.35; }
+  .feed-s{ font-family:var(--mono); font-size:10.5px; color:var(--muted); margin-top:2px; }
+
+  /* ---- Curriculum ---- */
+  .mod-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:16px; }
+  .mod-card{ padding:22px; transition:transform .18s, box-shadow .18s; cursor:pointer; position:relative; }
+  .mod-card:hover{ transform:translateY(-4px); box-shadow:var(--shadow-lg); }
+  .mod-card.locked{ opacity:.62; cursor:default; }
+  .mod-card.locked:hover{ transform:none; box-shadow:var(--shadow); }
+  .mod-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .mod-num{ font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.1em; color:var(--faint); }
+  .chip{ font-size:11px; font-weight:700; padding:4px 11px; border-radius:20px; text-transform:uppercase; letter-spacing:.05em; }
+  .chip.done{ background:var(--leaf-soft); color:var(--leaf); }
+  .chip.active{ background:var(--gold-soft); color:var(--gold-dark); }
+  .chip.locked{ background:#F3EFE4; color:var(--faint); }
+  .chip.star{ background:var(--leaf); color:#fff; }
+  .mod-title{ font-size:16.5px; font-weight:700; margin-bottom:6px; }
+  .mod-desc{ font-size:12.5px; color:var(--muted); line-height:1.55; margin-bottom:16px; }
+  .mod-meta{ display:flex; align-items:center; justify-content:space-between; font-size:12px; color:var(--muted); font-weight:500; }
+  .mod-bar{ height:7px; border-radius:5px; background:var(--gold-mist); overflow:hidden; margin-bottom:10px; }
+  .mod-bar i{ display:block; height:100%; background:var(--gold); border-radius:5px; }
+  .mod-card.done-card .mod-bar i{ background:var(--leaf); }
+
+  /* ---- Exercises ---- */
+  .ex-list .card{ padding:0; margin-bottom:12px; overflow:hidden; }
+  .ex-line{ display:flex; align-items:center; gap:16px; padding:18px 22px; }
+  .ex-ic{ width:42px; height:42px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .ex-ic.done{ background:var(--leaf-soft); color:var(--leaf); }
+  .ex-ic.todo{ background:var(--gold-soft); color:var(--gold-deep); }
+  .ex-body{ flex:1; min-width:0; }
+  .ex-t{ font-size:15px; font-weight:600; }
+  .ex-m{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .ex-state{ font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
+  .ex-state.ok{ color:var(--leaf); }
+  .dropzone{
+    margin:0 22px 20px 80px; border:2px dashed var(--line-2); border-radius:14px; padding:26px;
+    display:flex; flex-direction:column; align-items:center; gap:10px; cursor:pointer;
+    color:var(--muted); transition:border-color .2s, background .2s; text-align:center;
+  }
+  .dropzone:hover{ border-color:var(--gold); background:var(--gold-mist); color:var(--gold-dark); }
+  .dz-t{ font-size:14px; font-weight:600; }
+  .dz-s{ font-size:12px; }
+  .upbar{ width:100%; max-width:320px; height:8px; border-radius:6px; background:var(--line); overflow:hidden; }
+  .upbar i{ display:block; height:100%; width:0%; background:var(--gold); border-radius:6px; transition:width .12s linear; }
+
+  /* ---- Exams ---- */
+  .exam-duo{ display:grid; grid-template-columns:1fr 1.4fr; gap:16px; }
+  .next-exam{ padding:24px; }
+  .ne-date{
+    width:74px; height:80px; border-radius:14px; background:var(--gold); color:#fff; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; margin-bottom:16px; box-shadow:0 5px 16px rgba(232,163,23,.4);
+  }
+  .ne-date .d{ font-size:27px; font-weight:800; line-height:1; }
+  .ne-date .m{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-top:3px; }
+  .ne-title{ font-size:17.5px; font-weight:700; margin-bottom:5px; }
+  .ne-sub{ font-size:13px; color:var(--muted); margin-bottom:16px; line-height:1.55; }
+  .ne-row{ display:flex; justify-content:space-between; font-size:12.5px; padding:9px 0; border-top:1px solid var(--gold-mist); }
+  .ne-row .k{ color:var(--muted); font-weight:500; }
+  .ne-row .v{ font-weight:700; font-family:var(--mono); font-size:12px; }
+  .results-card{ padding:24px; }
+  .rc-title{ font-size:15px; font-weight:700; margin-bottom:20px; }
+  .bars{ display:flex; align-items:flex-end; gap:26px; height:170px; padding:0 6px; }
+  .bcol{ flex:1; display:flex; flex-direction:column; align-items:center; gap:9px; height:100%; justify-content:flex-end; }
+  .bcol .v{ font-family:var(--mono); font-size:12.5px; font-weight:700; color:var(--gold-dark); }
+  .bcol .b{ width:100%; max-width:52px; border-radius:9px 9px 4px 4px; background:linear-gradient(180deg, var(--gold), var(--gold-deep)); height:0; transition:height 1s cubic-bezier(.2,.7,.3,1); }
+  .bcol.leaf .b{ background:linear-gradient(180deg,#2E7D5B, var(--leaf)); }
+  .bcol .l{ font-size:11.5px; color:var(--muted); font-weight:600; }
+  .verify{ margin-top:18px; padding:13px 16px; background:var(--gold-mist); border-radius:12px; display:flex; align-items:center; gap:11px; font-size:12px; color:var(--gold-dark); }
+  .verify code{ font-family:var(--mono); font-weight:700; background:var(--card); padding:3px 9px; border-radius:6px; border:1px solid var(--line-2); }
+
+  /* ---- Attendance ---- */
+  .att-duo{ display:grid; grid-template-columns:1.5fr 1fr; gap:16px; }
+  .heat-card{ padding:24px; }
+  .heat-grid{ display:grid; grid-template-columns:repeat(7, 1fr); gap:7px; margin-top:16px; }
+  .heat-day{ font-size:10.5px; color:var(--faint); font-weight:700; text-align:center; text-transform:uppercase; padding-bottom:3px; }
+  .hcell{ aspect-ratio:1; border-radius:8px; background:var(--gold-mist); display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:600; color:var(--faint); position:relative; transition:transform .12s; }
+  .hcell:hover{ transform:scale(1.12); }
+  .hcell.p{ background:var(--gold); color:#fff; }
+  .hcell.late{ background:var(--gold-soft); color:var(--gold-dark); border:1.5px solid var(--gold); }
+  .hcell.a{ background:var(--coral-soft); color:var(--coral); }
+  .hcell.future{ background:#F6F2E7; }
+  .legend{ display:flex; gap:18px; margin-top:16px; font-size:11.5px; color:var(--muted); font-weight:500; flex-wrap:wrap; }
+  .lg{ display:flex; align-items:center; gap:7px; }
+  .lg i{ width:13px; height:13px; border-radius:4px; display:inline-block; }
+
+  /* ---- Progress ---- */
+  .prog-rows .card{ padding:20px 24px; margin-bottom:12px; display:flex; align-items:center; gap:20px; }
+  .pr-ic{ width:44px; height:44px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+  .pr-body{ flex:1; }
+  .pr-top{ display:flex; justify-content:space-between; margin-bottom:9px; }
+  .pr-t{ font-size:14.5px; font-weight:700; }
+  .pr-pct{ font-family:var(--mono); font-size:12.5px; font-weight:700; color:var(--gold-dark); }
+  .pr-bar{ height:9px; border-radius:6px; background:var(--gold-mist); overflow:hidden; }
+  .pr-bar i{ display:block; height:100%; border-radius:6px; background:var(--gold); width:0; transition:width 1s cubic-bezier(.2,.7,.3,1); }
+  .pr-bar.leaf i{ background:var(--leaf); }
+
+  /* ---- Settings ---- */
+  .set-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .set-card{ padding:24px; }
+  .set-title{ font-size:15px; font-weight:700; margin-bottom:16px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px; }
+  .field input, .field select{
+    width:100%; padding:11px 14px; border:1.5px solid var(--line-2); border-radius:11px; font-family:var(--sans);
+    font-size:14px; color:var(--ink); background:var(--card); outline:none; transition:border-color .15s;
+  }
+  .field input:focus, .field select:focus{ border-color:var(--gold); }
+  .tog-row{ display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid var(--gold-mist); }
+  .tog-row:last-child{ border-bottom:none; }
+  .tog-t{ font-size:13.5px; font-weight:600; }
+  .tog-s{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .toggle{ width:46px; height:26px; border-radius:20px; background:var(--line-2); position:relative; cursor:pointer; transition:background .2s; flex-shrink:0; border:none; }
+  .toggle::after{ content:""; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition:left .2s; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+  .toggle.on{ background:var(--gold); }
+  .toggle.on::after{ left:23px; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="side">
+    <div class="logo">
+      <svg class="logo-mark" viewBox="0 0 48 48">
+        <path d="M24 13c-2-4 1-8 5-9-1 4 0 6 2 7 2-4 6-4 9-2-3 1-5 3-5 6-3-2-8-3-11-2z" fill="#1B4D3E"/>
+        <path d="M24 13c2-4-1-8-5-9 1 4 0 6-2 7-2-4-6-4-9-2 3 1 5 3 5 6 3-2 8-3 11-2z" fill="#2E7D5B"/>
+        <ellipse cx="24" cy="30" rx="12.5" ry="15" fill="#E8A317"/>
+        <g stroke="#B97B0C" stroke-width="1.6" opacity=".75">
+          <path d="M13 24l22 12M13 30l20 11M13 36l14 8M15 19l22 12M20 16l17 10M28 16l7 4" fill="none"/>
+          <path d="M35 24l-22 12M35 30l-20 11M35 36l-14 8M33 19l-22 12M28 16l-17 10M20 16l-7 4" fill="none"/>
+        </g>
+      </svg>
+      <div>
+        <div class="logo-name">Anan<em>as</em></div>
+        <div class="logo-sub">AI Lab System</div>
+      </div>
+    </div>
+
+    <div class="nav-label">Menu</div>
+    <button class="nav-item active" data-page="dash"><span class="ic" data-ic="home"></span>Dashboard</button>
+    <button class="nav-item" data-page="curriculum"><span class="ic" data-ic="book"></span>Curriculum</button>
+    <button class="nav-item" data-page="exercises"><span class="ic" data-ic="pencil"></span>Exercises<span class="nav-badge">1</span></button>
+    <button class="nav-item" data-page="exams"><span class="ic" data-ic="award"></span>Exams</button>
+    <button class="nav-item" data-page="attendance"><span class="ic" data-ic="calendar"></span>Attendance</button>
+    <button class="nav-item" data-page="progress"><span class="ic" data-ic="chart"></span>Progress</button>
+    <div class="nav-label">Account</div>
+    <button class="nav-item" data-page="settings"><span class="ic" data-ic="gear"></span>Settings</button>
+
+    <div class="side-foot">
+      <div class="me-avatar">SR</div>
+      <div><div class="me-name">Sana Riaz</div><div class="me-role">Student · Cohort 2026-A</div></div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="content">
+    <div class="crumb">
+      <h1 id="page-title">Dashboard</h1>
+      <div class="date">Saturday, 18 July 2026</div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <section class="page show" id="page-dash">
+      <div class="hero-grid">
+        <div class="card ring-card">
+          <div class="ring-wrap">
+            <svg width="118" height="118" viewBox="0 0 118 118">
+              <circle cx="59" cy="59" r="50" fill="none" stroke="#FBEED3" stroke-width="11"/>
+              <circle id="ring" cx="59" cy="59" r="50" fill="none" stroke="#E8A317" stroke-width="11"
+                stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16"
+                transform="rotate(-90 59 59)" style="transition:stroke-dashoffset 1.3s cubic-bezier(.2,.7,.3,1)"/>
+            </svg>
+            <div class="ring-num"><span class="n" id="ring-n">0%</span><span class="l">Complete</span></div>
+          </div>
+          <div class="ring-txt">
+            <h3>Welcome back, Sana</h3>
+            <p>You're 62% through your AI Engineer path. Finish one more exercise to unlock Module 5.</p>
+          </div>
+        </div>
+        <div class="card mini-card">
+          <div class="mini-top"><div class="mini-icon g" data-ic2="flame"></div></div>
+          <div class="mini-num" id="cnt-streak">0</div>
+          <div class="mini-label">Day attendance streak</div>
+          <div class="streak-dots">
+            <span class="sdot"></span><span class="sdot"></span><span class="sdot"></span><span class="sdot"></span>
+            <span class="sdot"></span><span class="sdot"></span><span class="sdot off"></span>
+          </div>
+        </div>
+        <div class="card mini-card">
+          <div class="mini-top"><div class="mini-icon l" data-ic2="trophy"></div></div>
+          <div class="mini-num" id="cnt-avg">0%</div>
+          <div class="mini-label">Average exam score</div>
+          <div class="streak-dots" style="gap:4px;">
+            <span class="sdot" style="background:var(--leaf)"></span>
+            <span class="sdot" style="background:var(--leaf)"></span>
+            <span class="sdot" style="background:var(--leaf)"></span>
+            <span class="sdot off"></span><span class="sdot off"></span><span class="sdot off"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="duo">
+        <div class="card continue-card">
+          <div class="cc-inner">
+            <span class="cc-tag" ><span data-ic2="play" style="width:13px;height:13px;display:inline-block"></span>Continue learning</span>
+            <div class="cc-title">Module 4 · Neural network basics</div>
+            <div class="cc-sub">Next up: Backpropagation exercise · about 40 minutes</div>
+            <div class="bar"><div class="bar-fill" id="cc-bar"></div></div>
+            <button class="btn" onclick="go('exercises')"><span data-ic2="play" style="width:15px;height:15px;display:inline-block"></span>Resume module</button>
+          </div>
+        </div>
+        <div class="card feed-card">
+          <div class="feed-title">Recent activity</div>
+          <div class="feed-item"><div class="feed-dot l" data-ic2="check"></div><div><div class="feed-t">Perceptron from scratch — submitted</div><div class="feed-s">Today · 10:42</div></div></div>
+          <div class="feed-item"><div class="feed-dot g" data-ic2="star"></div><div><div class="feed-t">Module 3 exam passed — 78%</div><div class="feed-s">Tuesday · verified</div></div></div>
+          <div class="feed-item"><div class="feed-dot g" data-ic2="flame"></div><div><div class="feed-t">14-day streak reached</div><div class="feed-s">Yesterday</div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CURRICULUM -->
+    <section class="page" id="page-curriculum">
+      <div class="mod-grid" id="mod-grid"></div>
+    </section>
+
+    <!-- EXERCISES -->
+    <section class="page" id="page-exercises">
+      <div class="ex-list" id="ex-list"></div>
+    </section>
+
+    <!-- EXAMS -->
+    <section class="page" id="page-exams">
+      <div class="exam-duo">
+        <div class="card next-exam">
+          <div class="ne-date"><span class="d">24</span><span class="m">July</span></div>
+          <div class="ne-title">Module 4 exam</div>
+          <div class="ne-sub">Neural network basics — written section plus a short oral defense with your instructor.</div>
+          <div class="ne-row"><span class="k">Format</span><span class="v">WRITTEN + ORAL</span></div>
+          <div class="ne-row"><span class="k">Duration</span><span class="v">60 MIN</span></div>
+          <div class="ne-row"><span class="k">Location</span><span class="v">AI LAB · PC-06</span></div>
+        </div>
+        <div class="card results-card">
+          <div class="rc-title">Past results</div>
+          <div class="bars">
+            <div class="bcol leaf"><span class="v">92%</span><div class="b" data-h="92"></div><span class="l">Module 1</span></div>
+            <div class="bcol"><span class="v">85%</span><div class="b" data-h="85"></div><span class="l">Module 2</span></div>
+            <div class="bcol"><span class="v">78%</span><div class="b" data-h="78"></div><span class="l">Module 3</span></div>
+          </div>
+          <div class="verify"><span data-ic2="shield" style="width:17px;height:17px;flex-shrink:0"></span>Every result carries a verification ID — e.g. <code>ST-26A-M3-8241</code> — so employers can confirm it's real.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ATTENDANCE -->
+    <section class="page" id="page-attendance">
+      <div class="att-duo">
+        <div class="card heat-card">
+          <div class="rc-title">July 2026</div>
+          <div class="heat-grid" id="heat-grid"></div>
+          <div class="legend">
+            <span class="lg"><i style="background:var(--gold)"></i>Present</span>
+            <span class="lg"><i style="background:var(--gold-soft);border:1.5px solid var(--gold)"></i>Late</span>
+            <span class="lg"><i style="background:var(--coral-soft)"></i>Absent</span>
+            <span class="lg"><i style="background:var(--gold-mist)"></i>Weekend / holiday</span>
+          </div>
+        </div>
+        <div>
+          <div class="card mini-card" style="margin-bottom:16px;">
+            <div class="mini-top"><div class="mini-icon g" data-ic2="check"></div></div>
+            <div class="mini-num">96%</div>
+            <div class="mini-label">Attendance this term</div>
+          </div>
+          <div class="card mini-card">
+            <div class="mini-top"><div class="mini-icon l" data-ic2="clock"></div></div>
+            <div class="mini-num">142h</div>
+            <div class="mini-label">Total lab hours logged</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROGRESS -->
+    <section class="page" id="page-progress">
+      <div class="prog-rows" id="prog-rows"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" id="page-settings">
+      <div class="set-grid">
+        <div class="card set-card">
+          <div class="set-title">Profile</div>
+          <div class="field"><label>Full name</label><input value="Sana Riaz"></div>
+          <div class="field"><label>Email</label><input value="sana.riaz@student.st.pk"></div>
+          <div class="field"><label>Interface language</label>
+            <select><option>English</option><option>اردو (Urdu)</option></select>
+          </div>
+          <button class="btn" style="margin-top:6px;">Save changes</button>
+        </div>
+        <div class="card set-card">
+          <div class="set-title">Preferences</div>
+          <div class="tog-row">
+            <div><div class="tog-t">Exam reminders</div><div class="tog-s">Notify me a day before each exam</div></div>
+            <button class="toggle on" onclick="this.classList.toggle('on')" aria-label="Exam reminders"></button>
+          </div>
+          <div class="tog-row">
+            <div><div class="tog-t">Streak alerts</div><div class="tog-s">Warn me before I break my streak</div></div>
+            <button class="toggle on" onclick="this.classList.toggle('on')" aria-label="Streak alerts"></button>
+          </div>
+          <div class="tog-row">
+            <div><div class="tog-t">Show me on the class wall</div><div class="tog-s">Appear on the projector pulse grid</div></div>
+            <button class="toggle on" onclick="this.classList.toggle('on')" aria-label="Class wall"></button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  function ic(name, size){
+    size = size || 20;
+    var p = {
+      home:'<path d="M4 11l8-7 8 7v8.5a1.5 1.5 0 01-1.5 1.5H14v-6h-4v6H5.5A1.5 1.5 0 014 19.5z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>',
+      book:'<path d="M4.5 5.5c2.3-.9 4.6-.9 7.5 0v13c-2.9-.9-5.2-.9-7.5 0z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M19.5 5.5c-2.3-.9-4.6-.9-7.5 0v13c2.9-.9 5.2-.9 7.5 0z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>',
+      pencil:'<path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 013 3L8 19z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M14.5 6.5l3 3" stroke="currentColor" stroke-width="1.9"/>',
+      award:'<circle cx="12" cy="9" r="5.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8.5 13.5L7 21l5-2.5L17 21l-1.5-7.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>',
+      calendar:'<rect x="4" y="5.5" width="16" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+      chart:'<path d="M4.5 19.5V11M11.5 19.5V4.5M18.5 19.5v-6" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>',
+      gear:'<circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 2.8v3M12 18.2v3M21.2 12h-3M5.8 12h-3M18.5 5.5l-2.1 2.1M7.6 16.4l-2.1 2.1M18.5 18.5l-2.1-2.1M7.6 7.6L5.5 5.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+      flame:'<path d="M12 2.5c1.1 3-2.4 4.1-2.4 7.7a2.4 2.4 0 004.8 0c0-1.5-.7-2.2-.7-2.2s1.6.8 1.6 3.2a3.9 3.9 0 11-7.8 0c0-4.8 4.5-5.5 4.5-8.7z" fill="currentColor"/>',
+      trophy:'<path d="M8 4h8v5a4 4 0 01-8 0z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M8 5.5H5v1a3 3 0 003 3M16 5.5h3v1a3 3 0 01-3 3M12 13v3.5M8.5 20h7M10 16.5h4v3.5h-4z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/>',
+      play:'<path d="M8 5.5l10 6.5-10 6.5z" fill="currentColor"/>',
+      check:'<path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>',
+      star:'<path d="M12 3.5l2.5 5.2 5.7.7-4.2 4 1.1 5.6-5.1-2.8-5.1 2.8 1.1-5.6-4.2-4 5.7-.7z" fill="currentColor"/>',
+      lock:'<rect x="6" y="10.5" width="12" height="8.5" rx="2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M8.5 10.5v-3a3.5 3.5 0 017 0v3" fill="none" stroke="currentColor" stroke-width="1.9"/>',
+      upload:'<path d="M12 16V5M7.5 9L12 4.5 16.5 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      shield:'<path d="M12 3l7 2.5v5.5c0 4.5-3 7.5-7 9.5-4-2-7-5-7-9.5V5.5z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M9 11.5l2 2 4-4.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
+      clock:'<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>'
+    };
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24">'+p[name]+'</svg>';
+  }
+  document.querySelectorAll('[data-ic]').forEach(function(el){ el.innerHTML = ic(el.getAttribute('data-ic'), 20); });
+  document.querySelectorAll('[data-ic2]').forEach(function(el){ el.innerHTML = ic(el.getAttribute('data-ic2'), el.style.width ? parseInt(el.style.width) : 19); });
+
+  /* ---------- nav ---------- */
+  var titles = { dash:"Dashboard", curriculum:"Curriculum", exercises:"Exercises & submissions", exams:"Exams", attendance:"Attendance", progress:"Progress records", settings:"Settings" };
+  function go(page){
+    document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.toggle('active', n.getAttribute('data-page') === page); });
+    document.querySelectorAll('.page').forEach(function(s){ s.classList.remove('show'); });
+    var el = document.getElementById('page-' + page);
+    void el.offsetWidth;
+    el.classList.add('show');
+    document.getElementById('page-title').textContent = titles[page];
+    if(page === 'dash') animDash();
+    if(page === 'exams') animBars();
+    if(page === 'progress') animProg();
+  }
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.onclick = function(){ go(n.getAttribute('data-page')); }; });
+
+  /* ---------- dashboard anims ---------- */
+  function countUp(id, target, suffix, dur){
+    var el = document.getElementById(id); var start = null;
+    function step(ts){ if(!start) start = ts; var p = Math.min((ts-start)/dur, 1);
+      el.textContent = Math.round(target * (1 - Math.pow(1-p, 3))) + (suffix||'');
+      if(p < 1) requestAnimationFrame(step); }
+    requestAnimationFrame(step);
+  }
+  function animDash(){
+    setTimeout(function(){
+      document.getElementById('ring').style.strokeDashoffset = 314.16 * (1 - .62);
+      document.getElementById('cc-bar').style.width = '50%';
+      countUp('ring-n', 62, '%', 1200);
+      countUp('cnt-streak', 14, '', 900);
+      countUp('cnt-avg', 85, '%', 1000);
+    }, 120);
+  }
+
+  /* ---------- curriculum ---------- */
+  var mods = [
+    { n:"01", t:"Python foundations", d:"Variables, control flow, functions — the language of everything that follows.", st:"star", pct:100, meta:"Defended with instructor" },
+    { n:"02", t:"Data structures", d:"Lists, dictionaries and sets, finished with a mini project.", st:"done", pct:100, meta:"2 of 2 exercises" },
+    { n:"03", t:"NumPy and pandas", d:"Arrays, dataframes, and cleaning real messy data.", st:"done", pct:100, meta:"2 of 2 exercises" },
+    { n:"04", t:"Neural network basics", d:"Build a perceptron from scratch, then learn how networks actually learn.", st:"active", pct:50, meta:"1 of 2 exercises" },
+    { n:"05", t:"Computer vision intro", d:"Teach a machine to see — CNNs and image classification.", st:"locked", pct:0, meta:"Unlocks after Module 4" },
+    { n:"06", t:"Capstone project", d:"Design, build and defend your own AI project on demo day.", st:"locked", pct:0, meta:"Final module" }
+  ];
+  var chipMap = { star:['star','Defended'], done:['done','Complete'], active:['active','In progress'], locked:['locked','Locked'] };
+  var grid = document.getElementById('mod-grid');
+  mods.forEach(function(m){
+    var c = chipMap[m.st];
+    var div = document.createElement('div');
+    div.className = 'card mod-card' + (m.st==='locked' ? ' locked' : '') + (m.st==='done'||m.st==='star' ? ' done-card' : '');
+    div.innerHTML =
+      '<div class="mod-head"><span class="mod-num">MODULE '+m.n+'</span><span class="chip '+c[0]+'">'+c[1]+'</span></div>' +
+      '<div class="mod-title">'+m.t+'</div><div class="mod-desc">'+m.d+'</div>' +
+      '<div class="mod-bar"><i style="width:'+m.pct+'%"></i></div>' +
+      '<div class="mod-meta"><span>'+m.meta+'</span><span>'+m.pct+'%</span></div>';
+    grid.appendChild(div);
+  });
+
+  /* ---------- exercises ---------- */
+  var exs = [
+    { t:"Backpropagation exercise", m:"Module 4 · due Tuesday", done:false, open:true },
+    { t:"Perceptron from scratch", m:"Module 4 · submitted today", done:true },
+    { t:"Cleaning a messy dataset", m:"Module 3 · graded 82%", done:true },
+    { t:"Array operations", m:"Module 3 · graded 90%", done:true }
+  ];
+  var exList = document.getElementById('ex-list');
+  exs.forEach(function(e, i){
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<div class="ex-line">' +
+        '<div class="ex-ic '+(e.done?'done':'todo')+'">'+ic(e.done?'check':'pencil',19)+'</div>' +
+        '<div class="ex-body"><div class="ex-t">'+e.t+'</div><div class="ex-m">'+e.m+'</div></div>' +
+        (e.done ? '<span class="ex-state ok">Submitted</span>' : '') +
+      '</div>' +
+      (!e.done ? '<div class="dropzone" id="dz-'+i+'" onclick="fakeUpload('+i+')">'+
+          '<span style="width:26px;height:26px;display:inline-block">'+ic('upload',26)+'</span>' +
+          '<span class="dz-t">Drop your work here, or tap to upload</span>' +
+          '<span class="dz-s">Python files, notebooks or ZIP · max 25 MB</span>' +
+        '</div>' : '');
+    exList.appendChild(card);
+  });
+  function fakeUpload(i){
+    var dz = document.getElementById('dz-' + i);
+    dz.onclick = null;
+    dz.innerHTML = '<span class="dz-t">Uploading backprop_sana.py…</span><div class="upbar"><i id="up-'+i+'"></i></div>';
+    var w = 0;
+    var t = setInterval(function(){
+      w += 4 + Math.random()*8;
+      if(w >= 100){ w = 100; clearInterval(t);
+        setTimeout(function(){
+          dz.style.borderStyle = 'solid'; dz.style.borderColor = 'var(--leaf)'; dz.style.background = 'var(--leaf-soft)'; dz.style.color = 'var(--leaf)';
+          dz.innerHTML = '<span style="width:24px;height:24px;display:inline-block">'+ic('check',24)+'</span><span class="dz-t">Submitted — waiting for review</span><span class="dz-s">Today · 11:03 · backprop_sana.py</span>';
+        }, 250);
+      }
+      var bar = document.getElementById('up-' + i);
+      if(bar) bar.style.width = w + '%';
+    }, 90);
+  }
+
+  /* ---------- exams ---------- */
+  function animBars(){
+    setTimeout(function(){
+      document.querySelectorAll('.bcol .b').forEach(function(b){ b.style.height = b.getAttribute('data-h') + '%'; });
+    }, 140);
+  }
+
+  /* ---------- attendance heatmap ---------- */
+  (function(){
+    var wrap = document.getElementById('heat-grid');
+    ['M','T','W','T','F','S','S'].forEach(function(d){ var e = document.createElement('div'); e.className='heat-day'; e.textContent=d; wrap.appendChild(e); });
+    var startPad = 2; /* July 1 2026 = Wednesday */
+    var data = {1:'p',2:'p',3:'p',6:'p',7:'p',8:'late',9:'p',10:'p',13:'p',14:'a',15:'p',16:'p',17:'p'};
+    var today = 18;
+    for(var k=0;k<startPad;k++){ var pad=document.createElement('div'); wrap.appendChild(pad); }
+    for(var d=1; d<=31; d++){
+      var cell = document.createElement('div');
+      var dow = (startPad + d - 1) % 7;
+      var cls = 'hcell';
+      if(d > today) cls += ' future';
+      else if(dow >= 5) cls += '';
+      else if(data[d]) cls += ' ' + data[d];
+      cell.className = cls;
+      cell.textContent = d;
+      wrap.appendChild(cell);
+    }
+  })();
+
+  /* ---------- progress ---------- */
+  var progRows = document.getElementById('prog-rows');
+  mods.forEach(function(m){
+    var leaf = (m.st==='done'||m.st==='star');
+    var div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML =
+      '<div class="pr-ic" style="background:'+(leaf?'var(--leaf-soft)':'var(--gold-soft)')+';color:'+(leaf?'var(--leaf)':'var(--gold-deep)')+'">' + ic(m.st==='star'?'star':m.st==='done'?'check':m.st==='active'?'play':'lock', 19) + '</div>' +
+      '<div class="pr-body"><div class="pr-top"><span class="pr-t">Module '+m.n+' · '+m.t+'</span><span class="pr-pct">'+m.pct+'%</span></div>' +
+      '<div class="pr-bar'+(leaf?' leaf':'')+'"><i data-w="'+m.pct+'"></i></div></div>';
+    progRows.appendChild(div);
+  });
+  function animProg(){
+    setTimeout(function(){
+      document.querySelectorAll('.pr-bar i').forEach(function(b){ b.style.width = b.getAttribute('data-w') + '%'; });
+    }, 140);
+  }
+
+  animDash();
+</script>
+</body>
+</html>

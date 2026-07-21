@@ -1,0 +1,180 @@
+@import "./tokens.css";
+@import "./fonts.css";
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html {
+  background: var(--cream);
+}
+body {
+  font-family: var(--sans);
+  background: var(--cream);
+  color: var(--ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+svg {
+  display: block;
+}
+button {
+  font-family: var(--sans);
+  cursor: pointer;
+}
+a {
+  color: inherit;
+}
+::selection {
+  background: var(--gold);
+  color: #fff;
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--gold);
+  color: #fff;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 22px;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(232, 163, 23, 0.35);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 7px 20px rgba(232, 163, 23, 0.45);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+.btn.ghost {
+  background: var(--card);
+  color: var(--gold-dark);
+  border: 1.5px solid var(--line-2);
+  box-shadow: none;
+}
+.btn.ghost:hover {
+  border-color: var(--gold);
+}
+.btn.leaf {
+  background: var(--leaf-mid);
+  box-shadow: 0 5px 18px rgba(27, 77, 62, 0.3);
+}
+.btn.coral {
+  background: var(--coral);
+  box-shadow: 0 5px 18px rgba(216, 90, 48, 0.3);
+}
+
+.chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-block;
+}
+.chip.done {
+  background: var(--leaf-soft);
+  color: var(--leaf);
+}
+.chip.active {
+  background: var(--gold-soft);
+  color: var(--gold-dark);
+}
+.chip.locked {
+  background: #f3efe4;
+  color: var(--faint);
+}
+.chip.star {
+  background: var(--leaf);
+  color: #fff;
+}
+.chip.coral {
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.field {
+  margin-bottom: 14px;
+}
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.field input,
+.field select {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--line-2);
+  border-radius: 11px;
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--card);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.field input:focus,
+.field select:focus {
+  border-color: var(--gold);
+}
+.field-error {
+  font-size: 12px;
+  color: var(--coral);
+  margin-top: 6px;
+}
+
+.toggle {
+  width: 46px;
+  height: 26px;
+  border-radius: 20px;
+  background: var(--line-2);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  border: none;
+}
+.toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: left 0.2s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.toggle.on {
+  background: var(--gold);
+}
+.toggle.on::after {
+  left: 23px;
+}

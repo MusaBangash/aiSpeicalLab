@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ananas — Exam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#E8A317; --gold-deep:#B97B0C; --gold-dark:#7A5107;
+    --gold-soft:#FBEED3; --gold-mist:#FDF6E4;
+    --cream:#FCF8EF; --card:#FFFFFF; --line:#F0E6CF; --line-2:#E6D8B8;
+    --leaf:#1B4D3E; --leaf-mid:#2E7D5B; --leaf-soft:#E3EFE9;
+    --ink:#372C17; --muted:#94815D; --faint:#C4B48D;
+    --coral:#D85A30; --coral-soft:#FBEAE2;
+    --sans:'Outfit', -apple-system, sans-serif;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --shadow:0 2px 12px rgba(185,123,12,.07), 0 1px 3px rgba(55,44,23,.05);
+    --shadow-lg:0 10px 34px rgba(185,123,12,.14);
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ background:var(--cream); }
+  body{ font-family:var(--sans); background:var(--cream); color:var(--ink); min-height:100vh; -webkit-font-smoothing:antialiased; }
+  svg{ display:block; }
+  button{ font-family:var(--sans); cursor:pointer; }
+  ::selection{ background:var(--gold); color:#fff; }
+  @media (prefers-reduced-motion:reduce){ *{ animation:none !important; transition:none !important; } }
+
+  .hidden{ display:none !important; }
+  .stage{ max-width:960px; margin:0 auto; padding:0 24px 80px; }
+
+  /* ---------- lockdown bar ---------- */
+  .lockbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 28px; background:var(--card); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:10;
+  }
+  .lb-left{ display:flex; align-items:center; gap:12px; }
+  .lb-lock{
+    display:flex; align-items:center; gap:8px; background:var(--leaf-soft); color:var(--leaf);
+    font-size:12px; font-weight:700; padding:7px 14px; border-radius:20px;
+  }
+  .lb-lock .dot{ width:7px; height:7px; border-radius:50%; background:var(--leaf-mid); animation:blink 2s infinite; }
+  @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.3} }
+  .lb-title{ font-size:14px; font-weight:700; }
+  .lb-sub{ font-size:11.5px; color:var(--muted); font-family:var(--mono); }
+  .timer{
+    display:flex; align-items:center; gap:10px; background:var(--gold-soft); border:1.5px solid var(--gold);
+    padding:9px 18px; border-radius:14px;
+  }
+  .timer.warn{ background:var(--coral-soft); border-color:var(--coral); animation:tpulse 1s infinite; }
+  @keyframes tpulse{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.03);} }
+  .timer .t{ font-family:var(--mono); font-size:19px; font-weight:700; color:var(--gold-dark); letter-spacing:.02em; }
+  .timer.warn .t{ color:var(--coral); }
+  .timer .ic{ width:18px; height:18px; color:var(--gold-deep); }
+  .timer.warn .ic{ color:var(--coral); }
+
+  /* ---------- intro ---------- */
+  .intro{ display:flex; flex-direction:column; align-items:center; padding-top:64px; text-align:center; }
+  .pine{ width:74px; height:74px; margin-bottom:22px; animation:bob 3.4s ease-in-out infinite; }
+  @keyframes bob{ 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-7px);} }
+  .intro h1{ font-size:27px; font-weight:800; letter-spacing:-.02em; }
+  .intro .sub{ font-size:14.5px; color:var(--muted); margin-top:8px; max-width:420px; line-height:1.6; }
+  .rules{ display:grid; grid-template-columns:repeat(2, 250px); gap:12px; margin:34px 0 30px; }
+  .rule{
+    background:var(--card); border:1px solid var(--line); border-radius:15px; box-shadow:var(--shadow);
+    padding:17px 18px; display:flex; align-items:center; gap:13px; text-align:left;
+  }
+  .rule .ic{ width:38px; height:38px; border-radius:11px; background:var(--gold-soft); color:var(--gold-deep); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .rule .t{ font-size:13.5px; font-weight:700; }
+  .rule .s{ font-size:11.5px; color:var(--muted); margin-top:1px; }
+  .btn{
+    display:inline-flex; align-items:center; gap:10px; background:var(--gold); color:#fff; border:none;
+    font-size:15px; font-weight:700; padding:15px 30px; border-radius:14px;
+    box-shadow:0 5px 18px rgba(232,163,23,.38); transition:transform .15s, box-shadow .15s;
+  }
+  .btn:hover{ transform:translateY(-2px); box-shadow:0 8px 24px rgba(232,163,23,.48); }
+  .btn.leaf{ background:var(--leaf-mid); box-shadow:0 5px 18px rgba(27,77,62,.3); }
+  .btn.ghost{ background:var(--card); color:var(--gold-dark); border:1.5px solid var(--line-2); box-shadow:none; }
+  .btn.ghost:hover{ border-color:var(--gold); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; transform:none; }
+
+  /* ---------- exam layout ---------- */
+  .exam-wrap{ display:grid; grid-template-columns:1fr 218px; gap:22px; padding-top:30px; align-items:start; }
+
+  .qcard{ background:var(--card); border:1px solid var(--line); border-radius:20px; box-shadow:var(--shadow); padding:30px 34px; }
+  .q-eyebrow{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+  .q-num{ font-family:var(--mono); font-size:11.5px; font-weight:700; letter-spacing:.12em; color:var(--gold-deep); text-transform:uppercase; }
+  .q-saved{ display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--leaf-mid); font-weight:600; opacity:0; transition:opacity .3s; }
+  .q-saved.on{ opacity:1; }
+  .q-text{ font-size:18.5px; font-weight:600; line-height:1.55; margin-bottom:24px; }
+  .q-text code{ font-family:var(--mono); font-size:15.5px; background:var(--gold-mist); padding:2px 8px; border-radius:6px; }
+
+  .opt{
+    display:flex; align-items:center; gap:15px; border:1.5px solid var(--line-2); border-radius:14px;
+    padding:15px 18px; margin-bottom:11px; cursor:pointer; transition:border-color .15s, background .15s, transform .1s;
+    background:var(--card);
+  }
+  .opt:hover{ border-color:var(--gold); background:var(--gold-mist); }
+  .opt:active{ transform:scale(.99); }
+  .opt.sel{ border-color:var(--gold); background:var(--gold-soft); }
+  .opt-key{
+    width:32px; height:32px; border-radius:9px; border:1.5px solid var(--line-2); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13.5px; color:var(--muted);
+    transition:.15s;
+  }
+  .opt.sel .opt-key{ background:var(--gold); border-color:var(--gold); color:#fff; }
+  .opt-txt{ font-size:15px; font-weight:500; }
+  .opt-txt code{ font-family:var(--mono); font-size:13.5px; }
+
+  .q-foot{ display:flex; justify-content:space-between; margin-top:26px; }
+
+  /* ---------- navigator ---------- */
+  .navcard{ background:var(--card); border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); padding:20px; position:sticky; top:86px; }
+  .nav-title{ font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:14px; }
+  .qgrid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:18px; }
+  .qdot{
+    aspect-ratio:1; border-radius:10px; border:1.5px solid var(--line-2); background:var(--card);
+    font-family:var(--mono); font-size:12px; font-weight:700; color:var(--muted); cursor:pointer; transition:.13s;
+  }
+  .qdot:hover{ border-color:var(--gold); }
+  .qdot.ans{ background:var(--gold); border-color:var(--gold); color:#fff; }
+  .qdot.cur{ box-shadow:0 0 0 3px var(--gold-soft); border-color:var(--gold); }
+  .nav-stat{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); font-weight:600; padding:8px 2px; border-top:1px solid var(--gold-mist); }
+  .nav-stat b{ color:var(--ink); font-family:var(--mono); }
+  .finish-btn{ width:100%; margin-top:12px; justify-content:center; }
+
+  /* ---------- confirm sheet ---------- */
+  .veil{
+    position:fixed; inset:0; background:rgba(55,44,23,.4); display:flex; align-items:center; justify-content:center;
+    z-index:50; animation:fadein .2s;
+  }
+  @keyframes fadein{ from{opacity:0} }
+  .sheet{
+    background:var(--card); border-radius:22px; padding:34px; width:400px; text-align:center;
+    box-shadow:var(--shadow-lg); animation:pop .25s cubic-bezier(.2,.8,.3,1.2);
+  }
+  @keyframes pop{ from{ transform:scale(.92); opacity:0; } }
+  .sheet h3{ font-size:19px; font-weight:800; margin-bottom:8px; }
+  .sheet p{ font-size:13.5px; color:var(--muted); line-height:1.6; margin-bottom:22px; }
+  .sheet .warn-chip{ display:inline-flex; align-items:center; gap:7px; background:var(--coral-soft); color:var(--coral); font-size:12.5px; font-weight:700; padding:7px 14px; border-radius:20px; margin-bottom:16px; }
+  .sheet-btns{ display:flex; gap:10px; justify-content:center; }
+
+  /* ---------- results ---------- */
+  .result{ display:flex; flex-direction:column; align-items:center; padding-top:56px; text-align:center; }
+  .score-ring{ position:relative; width:190px; height:190px; margin-bottom:24px; }
+  .score-ring .n{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .score-ring .n b{ font-size:44px; font-weight:800; letter-spacing:-.03em; }
+  .score-ring .n span{ font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); }
+  .verdict{ font-size:25px; font-weight:800; margin-bottom:8px; }
+  .verdict.pass{ color:var(--leaf); }
+  .verdict.fail{ color:var(--coral); }
+  .r-sub{ font-size:14px; color:var(--muted); max-width:400px; line-height:1.65; margin-bottom:26px; }
+  .r-cards{ display:flex; gap:12px; margin-bottom:30px; }
+  .r-chip{ background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); padding:15px 22px; }
+  .r-chip .v{ font-family:var(--mono); font-size:17px; font-weight:700; }
+  .r-chip .k{ font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.07em; margin-top:3px; }
+  .confetti{ position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:40; }
+  .cf{ position:absolute; width:9px; height:14px; border-radius:2px; animation:fall linear forwards; }
+  @keyframes fall{ to{ transform:translateY(108vh) rotate(720deg); opacity:.9; } }
+</style>
+</head>
+<body>
+
+<!-- LOCKDOWN BAR (visible during exam) -->
+<div class="lockbar hidden" id="lockbar">
+  <div class="lb-left">
+    <div class="lb-lock"><span class="dot"></span><span id="i-lock" style="width:14px;height:14px;display:inline-block"></span>Exam mode · PC locked</div>
+    <div>
+      <div class="lb-title">Module 4 exam — Neural network basics</div>
+      <div class="lb-sub">SANA RIAZ · PC-06 · ATTEMPT 1</div>
+    </div>
+  </div>
+  <div class="timer" id="timer"><span class="ic" id="i-clock"></span><span class="t" id="clock">30:00</span></div>
+</div>
+
+<div class="stage">
+
+  <!-- ===== SCREEN 1: INTRO ===== -->
+  <section id="s-intro" class="intro">
+    <svg class="pine" viewBox="0 0 48 48">
+      <path d="M24 13c-2-4 1-8 5-9-1 4 0 6 2 7 2-4 6-4 9-2-3 1-5 3-5 6-3-2-8-3-11-2z" fill="#1B4D3E"/>
+      <path d="M24 13c2-4-1-8-5-9 1 4 0 6-2 7-2-4-6-4-9-2 3 1 5 3 5 6 3-2 8-3 11-2z" fill="#2E7D5B"/>
+      <ellipse cx="24" cy="30" rx="12.5" ry="15" fill="#E8A317"/>
+      <g stroke="#B97B0C" stroke-width="1.6" opacity=".75">
+        <path d="M13 24l22 12M13 30l20 11M13 36l14 8M15 19l22 12M20 16l17 10M28 16l7 4" fill="none"/>
+        <path d="M35 24l-22 12M35 30l-20 11M35 36l-14 8M33 19l-22 12M28 16l-17 10M20 16l-7 4" fill="none"/>
+      </g>
+    </svg>
+    <h1>Module 4 exam</h1>
+    <p class="sub">Neural network basics. Once you begin, this PC locks into exam mode until you finish or time runs out.</p>
+    <div class="rules">
+      <div class="rule"><div class="ic" id="i-r1"></div><div><div class="t">8 questions</div><div class="s">Drawn from the module bank</div></div></div>
+      <div class="rule"><div class="ic" id="i-r2"></div><div><div class="t">30 minutes</div><div class="s">Auto-submits at zero</div></div></div>
+      <div class="rule"><div class="ic" id="i-r3"></div><div><div class="t">Change freely</div><div class="s">Answers save as you go</div></div></div>
+      <div class="rule"><div class="ic" id="i-r4"></div><div><div class="t">Pass at 82%</div><div class="s">Retake after 24h if needed</div></div></div>
+    </div>
+    <button class="btn" onclick="startExam()"><span id="i-play" style="width:16px;height:16px;display:inline-block"></span>Begin exam</button>
+  </section>
+
+  <!-- ===== SCREEN 2: EXAM ===== -->
+  <section id="s-exam" class="hidden">
+    <div class="exam-wrap">
+      <div class="qcard">
+        <div class="q-eyebrow">
+          <span class="q-num" id="q-num">Question 1 of 8</span>
+          <span class="q-saved" id="q-saved"><span id="i-save" style="width:13px;height:13px;display:inline-block"></span>Saved</span>
+        </div>
+        <div class="q-text" id="q-text"></div>
+        <div id="q-opts"></div>
+        <div class="q-foot">
+          <button class="btn ghost" id="b-prev" onclick="move(-1)">&larr; Previous</button>
+          <button class="btn ghost" id="b-next" onclick="move(1)">Next &rarr;</button>
+        </div>
+      </div>
+      <div class="navcard">
+        <div class="nav-title">Questions</div>
+        <div class="qgrid" id="qgrid"></div>
+        <div class="nav-stat"><span>Answered</span><b id="n-ans">0 / 8</b></div>
+        <button class="btn leaf finish-btn" onclick="askFinish()">Finish exam</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SCREEN 3: RESULT ===== -->
+  <section id="s-result" class="result hidden">
+    <div class="score-ring">
+      <svg width="190" height="190" viewBox="0 0 190 190">
+        <circle cx="95" cy="95" r="82" fill="none" stroke="var(--gold-mist)" stroke-width="14"/>
+        <circle id="r-ring" cx="95" cy="95" r="82" fill="none" stroke="var(--leaf-mid)" stroke-width="14"
+          stroke-linecap="round" stroke-dasharray="515.2" stroke-dashoffset="515.2"
+          transform="rotate(-90 95 95)" style="transition:stroke-dashoffset 1.4s cubic-bezier(.2,.7,.3,1)"/>
+      </svg>
+      <div class="n"><b id="r-score">0%</b><span>Your score</span></div>
+    </div>
+    <div class="verdict" id="r-verdict"></div>
+    <p class="r-sub" id="r-sub"></p>
+    <div class="r-cards">
+      <div class="r-chip"><div class="v" id="r-correct">—</div><div class="k">Correct</div></div>
+      <div class="r-chip"><div class="v" id="r-time">—</div><div class="k">Time used</div></div>
+      <div class="r-chip"><div class="v">ST-26A-M4-<span id="r-vid">3117</span></div><div class="k">Verification ID</div></div>
+    </div>
+    <button class="btn" onclick="location.reload()">Back to dashboard</button>
+  </section>
+</div>
+
+<div id="veil-root"></div>
+<div class="confetti" id="confetti"></div>
+
+<script>
+  function ic(name, size){
+    size = size || 18;
+    var p = {
+      lock:'<rect x="6" y="10.5" width="12" height="8.5" rx="2" fill="none" stroke="currentColor" stroke-width="2.1"/><path d="M8.5 10.5v-3a3.5 3.5 0 017 0v3" fill="none" stroke="currentColor" stroke-width="2.1"/>',
+      clock:'<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      list:'<path d="M8 6h12M8 12h12M8 18h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/>',
+      swap:'<path d="M7 8h11M15 4.5L18.5 8 15 11.5M17 16H6M9 12.5L5.5 16 9 19.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+      target:'<circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/>',
+      play:'<path d="M8 5.5l10 6.5-10 6.5z" fill="currentColor"/>',
+      check:'<path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>'
+    };
+    return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 24 24">'+p[name]+'</svg>';
+  }
+  [['i-lock','lock',14],['i-clock','clock',18],['i-r1','list',19],['i-r2','clock',19],['i-r3','swap',19],['i-r4','target',19],['i-play','play',16],['i-save','check',13]]
+    .forEach(function(x){ var el = document.getElementById(x[0]); if(el) el.innerHTML = ic(x[1], x[2]); });
+
+  /* ---------- exam data (the "random draw" for this attempt) ---------- */
+  var Q = [
+    { t:"What does a single perceptron compute?", o:["A weighted sum of inputs passed through an activation","The average of all inputs","The maximum input value","A random binary output"], c:0 },
+    { t:"In training, what does the <code>learning rate</code> control?", o:["How many layers the network has","The size of each weight update step","The number of training examples","The activation function used"], c:1 },
+    { t:"Backpropagation is used to…", o:["Generate new training data","Choose the network architecture","Compute gradients of the loss with respect to weights","Normalize the input features"], c:2 },
+    { t:"Which activation outputs values between 0 and 1?", o:["ReLU","Tanh","Sigmoid","Linear"], c:2 },
+    { t:"What happens if the learning rate is far too high?", o:["Training becomes very slow but stable","The loss can oscillate or explode","The network needs fewer epochs","Nothing — it always converges"], c:1 },
+    { t:"A loss function measures…", o:["How fast the model trains","How far predictions are from the true values","The number of neurons used","The memory used by the model"], c:1 },
+    { t:"Why do we use non-linear activations at all?", o:["They make training faster","Without them, stacked layers collapse into one linear function","They reduce memory usage","They are required by Python"], c:1 },
+    { t:"One full pass over the training dataset is called…", o:["A batch","An iteration","An epoch","A gradient"], c:2 }
+  ];
+  var answers = new Array(Q.length).fill(null);
+  var cur = 0;
+  var totalSec = 30*60, remain = totalSec, tick = null, startedAt = null;
+
+  /* ---------- flow ---------- */
+  function startExam(){
+    document.getElementById('s-intro').classList.add('hidden');
+    document.getElementById('s-exam').classList.remove('hidden');
+    document.getElementById('lockbar').classList.remove('hidden');
+    buildGrid(); render();
+    startedAt = Date.now();
+    tick = setInterval(function(){
+      remain--;
+      var m = Math.floor(remain/60), s = remain%60;
+      document.getElementById('clock').textContent = (m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+      if(remain === 300) document.getElementById('timer').classList.add('warn');
+      if(remain <= 0){ clearInterval(tick); finish(true); }
+    }, 1000);
+  }
+
+  function render(){
+    var q = Q[cur];
+    document.getElementById('q-num').textContent = 'Question ' + (cur+1) + ' of ' + Q.length;
+    document.getElementById('q-text').innerHTML = q.t;
+    var box = document.getElementById('q-opts');
+    box.innerHTML = '';
+    var keys = ['A','B','C','D'];
+    q.o.forEach(function(opt, i){
+      var d = document.createElement('div');
+      d.className = 'opt' + (answers[cur] === i ? ' sel' : '');
+      d.onclick = function(){ pick(i); };
+      d.innerHTML = '<div class="opt-key">'+keys[i]+'</div><div class="opt-txt">'+opt+'</div>';
+      box.appendChild(d);
+    });
+    document.getElementById('b-prev').style.visibility = cur === 0 ? 'hidden' : 'visible';
+    document.getElementById('b-next').style.visibility = cur === Q.length-1 ? 'hidden' : 'visible';
+    paintGrid();
+  }
+
+  function pick(i){
+    answers[cur] = i;
+    render();
+    var s = document.getElementById('q-saved');
+    s.classList.add('on');
+    clearTimeout(s._t);
+    s._t = setTimeout(function(){ s.classList.remove('on'); }, 1400);
+  }
+
+  function move(d){ cur = Math.max(0, Math.min(Q.length-1, cur+d)); render(); }
+
+  function buildGrid(){
+    var g = document.getElementById('qgrid');
+    g.innerHTML = '';
+    Q.forEach(function(_, i){
+      var b = document.createElement('button');
+      b.className = 'qdot'; b.textContent = i+1;
+      b.onclick = function(){ cur = i; render(); };
+      g.appendChild(b);
+    });
+  }
+  function paintGrid(){
+    var dots = document.querySelectorAll('.qdot');
+    var n = 0;
+    dots.forEach(function(d, i){
+      d.classList.toggle('ans', answers[i] !== null);
+      d.classList.toggle('cur', i === cur);
+      if(answers[i] !== null) n++;
+    });
+    document.getElementById('n-ans').textContent = n + ' / ' + Q.length;
+  }
+
+  function askFinish(){
+    var unanswered = answers.filter(function(a){ return a === null; }).length;
+    var root = document.getElementById('veil-root');
+    root.innerHTML =
+      '<div class="veil" onclick="if(event.target===this)closeSheet()">' +
+        '<div class="sheet">' +
+          (unanswered > 0 ? '<div class="warn-chip">'+unanswered+' question'+(unanswered>1?'s':'')+' unanswered</div>' : '') +
+          '<h3>Finish and submit?</h3>' +
+          '<p>Once submitted, your answers are final and your score is calculated instantly. This can\u2019t be undone.</p>' +
+          '<div class="sheet-btns">' +
+            '<button class="btn ghost" onclick="closeSheet()">Keep working</button>' +
+            '<button class="btn leaf" onclick="finish(false)">Submit exam</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+  function closeSheet(){ document.getElementById('veil-root').innerHTML = ''; }
+
+  function finish(auto){
+    closeSheet();
+    clearInterval(tick);
+    var correct = 0;
+    Q.forEach(function(q, i){ if(answers[i] === q.c) correct++; });
+    var pct = Math.round(correct / Q.length * 100);
+    var pass = pct >= 82;
+    var used = Math.round((Date.now() - startedAt)/1000);
+    var um = Math.floor(used/60), us = used%60;
+
+    document.getElementById('s-exam').classList.add('hidden');
+    document.getElementById('lockbar').classList.add('hidden');
+    document.getElementById('s-result').classList.remove('hidden');
+
+    var ring = document.getElementById('r-ring');
+    ring.style.stroke = pass ? 'var(--leaf-mid)' : 'var(--coral)';
+    var v = document.getElementById('r-verdict');
+    v.className = 'verdict ' + (pass ? 'pass' : 'fail');
+    v.textContent = pass ? (auto ? 'Time up — but you passed!' : 'Passed — well done!') : (auto ? 'Time up — not this time' : 'Not this time');
+    document.getElementById('r-sub').textContent = pass
+      ? 'Module 4 exam is complete and sealed. Module 5 — Computer vision — is now unlocked on your path.'
+      : 'You need 82% to pass. You can retake this exam after 24 hours — a fresh set of questions will be drawn, and only your latest score counts.';
+    document.getElementById('r-correct').textContent = correct + ' / ' + Q.length;
+    document.getElementById('r-time').textContent = um + 'm ' + (us<10?'0':'') + us + 's';
+    document.getElementById('r-vid').textContent = String(1000 + Math.floor(Math.random()*9000));
+
+    setTimeout(function(){
+      ring.style.strokeDashoffset = 515.2 * (1 - pct/100);
+      countUp('r-score', pct, 1300);
+      if(pass) confetti();
+    }, 150);
+  }
+
+  function countUp(id, target, dur){
+    var el = document.getElementById(id), start = null;
+    function step(ts){ if(!start) start = ts; var p = Math.min((ts-start)/dur, 1);
+      el.textContent = Math.round(target * (1 - Math.pow(1-p, 3))) + '%';
+      if(p < 1) requestAnimationFrame(step); }
+    requestAnimationFrame(step);
+  }
+
+  function confetti(){
+    var box = document.getElementById('confetti');
+    var colors = ['#E8A317','#B97B0C','#1B4D3E','#2E7D5B','#F5C860'];
+    for(var i=0;i<70;i++){
+      var c = document.createElement('div');
+      c.className = 'cf';
+      c.style.left = Math.random()*100 + 'vw';
+      c.style.top = (-10 - Math.random()*20) + 'vh';
+      c.style.background = colors[Math.floor(Math.random()*colors.length)];
+      c.style.animationDuration = (2.2 + Math.random()*2) + 's';
+      c.style.animationDelay = (Math.random()*.8) + 's';
+      box.appendChild(c);
+    }
+    setTimeout(function(){ box.innerHTML = ''; }, 5000);
+  }
+</script>
+</body>
+</html>

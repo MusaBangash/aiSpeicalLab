@@ -1,0 +1,28 @@
+/* Design tokens — extracted verbatim from docs/design/ananas_dashboard.html
+   and docs/design/exam_ui.html. Do not invent new values; add to this file
+   if a new token is needed and back-port it into the design docs mentally. */
+:root {
+  --gold: #e8a317;
+  --gold-deep: #b97b0c;
+  --gold-dark: #7a5107;
+  --gold-soft: #fbeed3;
+  --gold-mist: #fdf6e4;
+  --cream: #fcf8ef;
+  --card: #ffffff;
+  --line: #f0e6cf;
+  --line-2: #e6d8b8;
+  --leaf: #1b4d3e;
+  --leaf-mid: #2e7d5b;
+  --leaf-soft: #e3efe9;
+  --ink: #372c17;
+  --muted: #94815d;
+  --faint: #c4b48d;
+  --coral: #d85a30;
+  --coral-soft: #fbeae2;
+  --sans: "Outfit", -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --shadow: 0 2px 12px rgba(185, 123, 12, 0.07), 0 1px 3px rgba(55, 44, 23, 0.05);
+  /* dashboard mockup's value chosen as canonical (exam_ui.html uses a slightly
+     stronger 0 10px 34px / .14 for its own bigger cards; not worth a second token) */
+  --shadow-lg: 0 8px 30px rgba(185, 123, 12, 0.12);
+}

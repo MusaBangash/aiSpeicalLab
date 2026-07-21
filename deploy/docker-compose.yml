@@ -1,0 +1,52 @@
+# STLab on the R730 — app + PostgreSQL + nightly backup
+# Usage: docker compose up -d
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: stlab
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set in .env}
+      POSTGRES_DB: stlab
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # NOTE: no ports exposed — only the app container reaches the DB.
+    # Lab PCs and WiFi devices can never hit PostgreSQL directly.
+
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      DATABASE_URL: postgresql://stlab:${DB_PASSWORD}@db:5432/stlab
+      AUTH_SECRET: ${AUTH_SECRET:?set in .env}
+      AGENT_API_KEY: ${AGENT_API_KEY:?set in .env}
+    ports:
+      - "3000:3000"   # LAN-facing; restrict further with ufw to lab subnets
+    volumes:
+      # Saved screen-recording JPEGs — must survive image rebuilds (the
+      # Dockerfile recreates /app fresh each time) and must never be a bare
+      # in-container folder, or "Save this session" data silently vanishes
+      # on the next deploy.
+      - screen_recordings:/app/var/screen-recordings
+
+  backup:
+    image: postgres:17
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ../backups:/backups
+    entrypoint: >
+      sh -c 'while true; do
+        pg_dump -h db -U stlab stlab > /backups/stlab-$$(date +%F).sql;
+        find /backups -name "stlab-*.sql" -mtime +30 -delete;
+        sleep 86400;
+      done'
+
+volumes:
+  pgdata:
+  screen_recordings:
