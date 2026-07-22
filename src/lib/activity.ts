@@ -9,7 +9,7 @@ export function isIdle(idleSeconds: number): boolean {
   return idleSeconds >= IDLE_THRESHOLD_SECONDS;
 }
 
-const STALE_MINUTES = 5;
+export const STALE_MINUTES = 5;
 
 /**
  * Opens/updates/closes an ActivitySegment for one heartbeat's telemetry.
@@ -127,4 +127,75 @@ export async function getStudentActivity(studentId: string, limit = 20): Promise
   }
 
   return { current, recent };
+}
+
+export type ClassActivityCurrent = {
+  appName: string;
+  windowTitle: string;
+  idleSeconds: number;
+  lastSeenAt: Date;
+  pcHostname: string;
+};
+export type ClassActivityEntry = { online: boolean; current: ClassActivityCurrent | null };
+
+/**
+ * Batch counterpart to getStudentActivity, for the class live-activity
+ * panel. Relies on recordActivity's invariant that a student has at most
+ * one endedAt:null ActivitySegment at a time — one query, no N+1.
+ * Every id in studentIds is present in the returned Map (default
+ * { online:false, current:null }), so callers never need a fallback branch.
+ */
+export async function getClassActivity(studentIds: string[]): Promise<Map<string, ClassActivityEntry>> {
+  const result = new Map<string, ClassActivityEntry>(
+    studentIds.map((id) => [id, { online: false, current: null }])
+  );
+  if (studentIds.length === 0) return result;
+
+  const openSegments = await db.activitySegment.findMany({
+    where: { studentId: { in: studentIds }, endedAt: null },
+    include: { pc: { select: { hostname: true } } },
+  });
+
+  const staleCutoff = Date.now() - STALE_MINUTES * 60 * 1000;
+  for (const seg of openSegments) {
+    if (seg.lastSeenAt.getTime() < staleCutoff) continue; // same staleness definition as getStudentActivity
+    result.set(seg.studentId, {
+      online: true,
+      current: {
+        appName: seg.appName,
+        windowTitle: seg.windowTitle,
+        idleSeconds: seg.idleSeconds,
+        lastSeenAt: seg.lastSeenAt,
+        pcHostname: seg.pc.hostname,
+      },
+    });
+  }
+  return result;
+}
+
+export type ClassActivityStudent = {
+  studentId: string;
+  name: string;
+  online: boolean;
+  current: { appName: string; windowTitle: string; idle: boolean; lastSeenAt: string; pcHostname: string } | null;
+};
+
+/** Shared roster+activity → JSON mapping, used identically by the GET route
+ *  and the page's SSR initial prop, so first paint and first poll response
+ *  never disagree in shape. */
+export function toClassActivityPayload(
+  roster: { studentId: string; name: string }[],
+  activity: Map<string, ClassActivityEntry>
+): ClassActivityStudent[] {
+  return roster.map((r) => {
+    const entry = activity.get(r.studentId) ?? { online: false, current: null };
+    return {
+      studentId: r.studentId,
+      name: r.name,
+      online: entry.online,
+      current: entry.current
+        ? { ...entry.current, idle: isIdle(entry.current.idleSeconds), lastSeenAt: entry.current.lastSeenAt.toISOString() }
+        : null,
+    };
+  });
 }

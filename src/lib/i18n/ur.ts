@@ -9,13 +9,16 @@ export const ur: Dictionary = {
   nav: {
     dashboard: "Dashboard",
     curriculum: "Curriculum",
-    exercises: "Exercises",
+    exercises: "Homework",
     exams: "Exams",
     attendance: "Attendance",
     progress: "Progress",
     settings: "Settings",
     console: "Console",
     students: "Students",
+    classes: "Classes",
+    messages: "Messages",
+    homework: "Homework",
   },
   common: {
     signIn: "Sign in",

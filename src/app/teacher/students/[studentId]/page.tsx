@@ -4,19 +4,41 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getStudentMetrics, JOURNAL_CATEGORIES } from "@/lib/metrics";
 import { getStudentActivity, isIdle } from "@/lib/activity";
+import { getStudentJoinDate } from "@/lib/classes";
+import { getExamCounts } from "@/lib/dashboard";
+import { computeLongestStreak, getStudentMonthAttendanceCells, listMonthsDescending } from "@/lib/attendance";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/shell/Icon";
 import { JournalEntryForm } from "@/components/metrics/JournalEntryForm";
 import { JournalHistoryList } from "@/components/metrics/JournalHistoryList";
+import { JournalTimeline } from "@/components/metrics/JournalTimeline";
 import { getRecordingsForStudent } from "@/lib/screenView";
 import { ScreenViewPanel } from "@/components/screenview/ScreenViewPanel";
+import { MonthHeatmapGrid } from "@/components/attendance/MonthHeatmapGrid";
+import { ExamScoreTrend } from "@/components/students/ExamScoreTrend";
+import { StudentSummaryStrip } from "@/components/students/StudentSummaryStrip";
 import Link from "next/link";
 
 const CATEGORY_LABELS: Record<string, string> = {
   PARTICIPATION: "Participation",
   BEHAVIOUR: "Behaviour",
   EXTRA_ACTIVITY: "Extra activity",
+};
+
+const COURSE_TYPE_LABELS: Record<string, string> = {
+  BEGINNER: "Beginner",
+  INTERMEDIATE: "Intermediate",
+  ADVANCED: "Advanced",
+  DIPLOMA: "Diploma",
+  OTHER: "Other",
+};
+
+const CATEGORY_TYPE_LABELS: Record<string, string> = {
+  PAYING: "Paying",
+  ORPHAN: "Orphan",
+  STAFF: "Staff",
+  OTHER: "Other",
 };
 
 export default async function TeacherStudentDetailPage({
@@ -31,15 +53,65 @@ export default async function TeacherStudentDetailPage({
   const student = await db.user.findUnique({ where: { id: studentId } });
   if (!student || student.role !== "STUDENT") redirect("/teacher/students");
 
-  const [metrics, activity, recordings] = await Promise.all([
+  const [metrics, activity, recordings, profile, joinDate, allAttendance, examCounts] = await Promise.all([
     getStudentMetrics(studentId),
     getStudentActivity(studentId),
     getRecordingsForStudent(session.user.id, studentId),
+    db.studentProfile.findUnique({ where: { userId: studentId } }),
+    getStudentJoinDate(studentId),
+    db.attendance.findMany({ where: { studentId } }), // all-time — reused for BOTH longest streak AND total-days-present
+    getExamCounts(studentId),
   ]);
+
+  const longestStreak = computeLongestStreak(allAttendance);
+  const totalDaysPresent = allAttendance.filter((a) => a.status === "PRESENT" || a.status === "LATE").length;
+  const months = joinDate ? listMonthsDescending(joinDate, new Date()) : [];
+  const monthCells = await Promise.all(months.map((m) => getStudentMonthAttendanceCells(studentId, m.year, m.month)));
+
+  const journalEntries = metrics.entries.map((e) => ({
+    id: e.id,
+    category: e.category,
+    rating: e.rating,
+    note: e.note,
+    createdAt: e.createdAt.toISOString(),
+    teacherName: e.teacherName,
+    status: e.status,
+    correctedFromRating: e.correctedFromRating,
+    canManage: e.teacherId === session.user.id,
+  }));
 
   return (
     <div className="page-anim">
       <PageHeader title={student.name} />
+
+      {profile ? (
+        <Card className="feed-card" style={{ marginBottom: 16, display: "flex", gap: 20, alignItems: "flex-start" }}>
+          {profile.photoPath ? (
+            <img
+              src={`/api/students/${student.id}/photo`}
+              alt={student.name}
+              style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 12, flexShrink: 0 }}
+            />
+          ) : null}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 24px", fontSize: 14 }}>
+            <div><span style={{ color: "var(--muted)" }}>Father&apos;s name:</span> {profile.fatherName}</div>
+            <div><span style={{ color: "var(--muted)" }}>Contact:</span> {profile.contact}</div>
+            <div><span style={{ color: "var(--muted)" }}>Address:</span> {profile.address}</div>
+            <div><span style={{ color: "var(--muted)" }}>Gender:</span> {profile.gender}</div>
+            <div>
+              <span style={{ color: "var(--muted)" }}>Course type:</span>{" "}
+              {profile.courseType === "OTHER" ? profile.courseTypeOther : COURSE_TYPE_LABELS[profile.courseType]}
+            </div>
+            <div><span style={{ color: "var(--muted)" }}>Category:</span> {CATEGORY_TYPE_LABELS[profile.category]}</div>
+            <div>
+              <span style={{ color: "var(--muted)" }}>Residency:</span>{" "}
+              {profile.residency === "DAY_SCHOLAR" ? "Day scholar" : "Hostelized"}
+            </div>
+            <div><span style={{ color: "var(--muted)" }}>Education:</span> {profile.educationLevel} — {profile.educationStatus}</div>
+          </div>
+        </Card>
+      ) : null}
+
       <div className="hero-grid">
         <Card className="mini-card">
           <div className="mini-top">
@@ -73,6 +145,58 @@ export default async function TeacherStudentDetailPage({
           </Card>
         ))}
       </div>
+
+      <StudentSummaryStrip
+        joinedDate={joinDate}
+        totalDaysPresent={totalDaysPresent}
+        longestStreak={longestStreak}
+        examsTaken={examCounts.examsTaken}
+        examsPassed={examCounts.examsPassed}
+      />
+
+      {joinDate ? (
+        <>
+          <div className="rc-title" style={{ marginTop: 24 }}>
+            Attendance history
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {months.map((m, i) => (
+              <MonthHeatmapGrid key={`${m.year}-${m.month}`} year={m.year} month={m.month} cells={monthCells[i]} />
+            ))}
+          </div>
+          <div className="legend" style={{ marginBottom: 24 }}>
+            <span className="lg">
+              <i style={{ background: "var(--gold)" }} />
+              Present
+            </span>
+            <span className="lg">
+              <i style={{ background: "var(--gold-soft)", border: "1.5px solid var(--gold)" }} />
+              Late
+            </span>
+            <span className="lg">
+              <i style={{ background: "var(--coral-soft)" }} />
+              Absent
+            </span>
+            <span className="lg">
+              <i style={{ background: "var(--leaf-soft)" }} />
+              Excused
+            </span>
+            <span className="lg">
+              <i style={{ background: "var(--gold-mist)" }} />
+              Weekend / holiday
+            </span>
+          </div>
+        </>
+      ) : (
+        <div className="feed-empty">No enrollment history yet.</div>
+      )}
+
+      <ExamScoreTrend studentId={studentId} />
+
+      <Card className="feed-card" style={{ marginTop: 16, marginBottom: 16 }}>
+        <div className="feed-title">Journal timeline</div>
+        <JournalTimeline entries={journalEntries} />
+      </Card>
 
       <Card className="feed-card" style={{ marginTop: 16, marginBottom: 16 }}>
         <div className="feed-title">Activity</div>
@@ -151,19 +275,7 @@ export default async function TeacherStudentDetailPage({
         <JournalEntryForm studentId={student.id} />
       </Card>
 
-      <JournalHistoryList
-        entries={metrics.entries.map((e) => ({
-          id: e.id,
-          category: e.category,
-          rating: e.rating,
-          note: e.note,
-          createdAt: e.createdAt.toISOString(),
-          teacherName: e.teacherName,
-          status: e.status,
-          correctedFromRating: e.correctedFromRating,
-          canManage: e.teacherId === session.user.id,
-        }))}
-      />
+      <JournalHistoryList entries={journalEntries} />
     </div>
   );
 }

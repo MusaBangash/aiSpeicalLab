@@ -1,4 +1,5 @@
 /** Teacher: all students, exam avg + attendance %, links to each profile */
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getAllStudentsSummary } from "@/lib/metrics";
@@ -14,6 +15,11 @@ export default async function TeacherStudentsPage() {
   return (
     <div className="page-anim">
       <PageHeader title="Students" />
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+        <Link href="/teacher/students/new" className="btn">
+          Add student
+        </Link>
+      </div>
       <StudentsGridClient students={students} />
     </div>
   );

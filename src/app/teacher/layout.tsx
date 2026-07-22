@@ -10,9 +10,12 @@ export default async function TeacherLayout({ children }: { children: ReactNode 
   const t = getDictionary(session.user.language);
   const teacherNav: NavItem[] = [
     { href: "/teacher/console", label: t.nav.console, icon: "home" },
+    { href: "/teacher/messages", label: t.nav.messages, icon: "megaphone" },
+    { href: "/teacher/homework", label: t.nav.homework, icon: "upload" },
     { href: "/teacher/exams", label: t.nav.exams, icon: "award" },
     { href: "/teacher/attendance", label: t.nav.attendance, icon: "calendar" },
     { href: "/teacher/students", label: t.nav.students, icon: "list" },
+    { href: "/teacher/classes", label: t.nav.classes, icon: "people" },
   ];
 
   return (

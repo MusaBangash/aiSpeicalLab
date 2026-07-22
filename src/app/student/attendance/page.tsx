@@ -2,16 +2,11 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { startOfDay, computeStreak, mondayIndex, getTermAttendancePercent } from "@/lib/attendance";
+import { startOfDay, computeStreak, getTermAttendancePercent, getStudentMonthAttendanceCells } from "@/lib/attendance";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/shell/Icon";
-
-const DAY_LABELS = ["M", "T", "W", "T", "F", "S", "S"];
-const MONTH_NAMES = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
+import { MonthHeatmapGrid } from "@/components/attendance/MonthHeatmapGrid";
 
 export default async function StudentAttendancePage() {
   const session = await auth();
@@ -22,7 +17,6 @@ export default async function StudentAttendancePage() {
   // Every day bucket below goes through startOfDay so it lines up with how
   // Attendance.date is actually stored — see the comment on startOfDay.
   const monthStart = startOfDay(new Date(now.getFullYear(), now.getMonth(), 1));
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 
   const [monthRecords, allRecords, sessions] = await Promise.all([
     db.attendance.findMany({
@@ -45,22 +39,7 @@ export default async function StudentAttendancePage() {
   const totalMs = sessions.reduce((sum, s) => sum + ((s.endedAt ?? now).getTime() - s.startedAt.getTime()), 0);
   const totalHours = Math.round(totalMs / (1000 * 60 * 60));
 
-  const startPad = mondayIndex(monthStart);
-  const cells: { day: number; cls: string }[] = [];
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = startOfDay(new Date(now.getFullYear(), now.getMonth(), d));
-    let cls = "hcell";
-    if (date > today) {
-      cls += " future";
-    } else {
-      const rec = byDay.get(date.getTime());
-      if (rec?.status === "PRESENT") cls += " p";
-      else if (rec?.status === "LATE") cls += " late";
-      else if (rec?.status === "ABSENT") cls += " a";
-      else if (rec?.status === "EXCUSED") cls += " excused";
-    }
-    cells.push({ day: d, cls });
-  }
+  const cells = await getStudentMonthAttendanceCells(session.user.id, now.getFullYear(), now.getMonth(), now);
 
   return (
     <div className="page-anim">
@@ -72,25 +51,8 @@ export default async function StudentAttendancePage() {
         </div>
       )}
       <div className="att-duo">
-        <Card className="heat-card">
-          <div className="rc-title">
-            {MONTH_NAMES[now.getMonth()]} {now.getFullYear()}
-          </div>
-          <div className="heat-grid">
-            {DAY_LABELS.map((l, i) => (
-              <div key={i} className="heat-day">
-                {l}
-              </div>
-            ))}
-            {Array.from({ length: startPad }, (_, i) => (
-              <div key={"pad" + i} />
-            ))}
-            {cells.map((c) => (
-              <div key={c.day} className={c.cls}>
-                {c.day}
-              </div>
-            ))}
-          </div>
+        <div>
+          <MonthHeatmapGrid year={now.getFullYear()} month={now.getMonth()} cells={cells} />
           <div className="legend">
             <span className="lg">
               <i style={{ background: "var(--gold)" }} />
@@ -113,7 +75,7 @@ export default async function StudentAttendancePage() {
               Weekend / holiday
             </span>
           </div>
-        </Card>
+        </div>
         <div>
           <Card className="mini-card" style={{ marginBottom: 16 }}>
             <div className="mini-top">

@@ -26,6 +26,8 @@ const PATHS = {
   logout: '<path d="M9 21H5.5A1.5 1.5 0 014 19.5v-15A1.5 1.5 0 015.5 3H9M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
   close: '<path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  people: '<circle cx="9" cy="8.5" r="3" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3.5 19c.6-3 2.7-4.7 5.5-4.7s4.9 1.7 5.5 4.7" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="16.5" cy="9" r="2.4" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M14.8 14.7c1.7-.5 3.4-.3 4.7 1a5.8 5.8 0 011.5 3.3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
+  megaphone: '<path d="M3.5 10.5v3a1.5 1.5 0 001.5 1.5h1l1.2 4.2a1.3 1.3 0 001.25.9h.3a1.3 1.3 0 001.25-1.66L9 15h.5l9-3.5v-3l-9-3.5H6a2.5 2.5 0 00-2.5 2.5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M18.5 8.5v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
 } as const;
 
 export type IconName = keyof typeof PATHS;

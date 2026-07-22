@@ -45,6 +45,46 @@ export default async function TeacherConsolePage() {
         </Card>
       </div>
 
+      {/* Profiled students only — students enrolled before this feature existed have no StudentProfile row, so these counts can be lower than studentCount above. */}
+      <div className="hero-grid" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr", marginTop: 16 }}>
+        <Card className="mini-card">
+          <div className="mini-top">
+            <div className="mini-icon l">
+              <Icon name="people" size={20} />
+            </div>
+          </div>
+          <div className="mini-num">{data.girlsCount}</div>
+          <div className="mini-label">Girls</div>
+        </Card>
+        <Card className="mini-card">
+          <div className="mini-top">
+            <div className="mini-icon l">
+              <Icon name="people" size={20} />
+            </div>
+          </div>
+          <div className="mini-num">{data.boysCount}</div>
+          <div className="mini-label">Boys</div>
+        </Card>
+        <Card className="mini-card">
+          <div className="mini-top">
+            <div className="mini-icon g">
+              <Icon name="people" size={20} />
+            </div>
+          </div>
+          <div className="mini-num">{data.hostelizedCount}</div>
+          <div className="mini-label">Hostelized</div>
+        </Card>
+        <Card className="mini-card">
+          <div className="mini-top">
+            <div className="mini-icon g">
+              <Icon name="people" size={20} />
+            </div>
+          </div>
+          <div className="mini-num">{data.dayScholarCount}</div>
+          <div className="mini-label">Day scholar</div>
+        </Card>
+      </div>
+
       <Card className="feed-card" style={{ marginBottom: 16 }}>
         <div className="feed-title">Exam pass rates</div>
         {data.examStats.length === 0 ? (

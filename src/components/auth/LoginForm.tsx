@@ -24,9 +24,11 @@ export function LoginForm() {
       setPending(false);
       return;
     }
-    // Read by AttendanceToast (student layout) — cleared there after showing
-    // once, so it never re-fires on a later navigation/refresh this tab.
+    // Read by AttendanceToast/UnreadMessagesToast (student layout) —
+    // cleared there after showing once, so neither re-fires on a later
+    // navigation/refresh this tab.
     sessionStorage.setItem("stlab-attendance-toast", "pending");
+    sessionStorage.setItem("stlab-messages-toast", "pending");
     // Role-based landing is decided by src/app/page.tsx.
     router.push("/");
     router.refresh();

@@ -42,21 +42,19 @@ export function AttendanceToast() {
   const date = new Date(info.checkedInAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
   return (
-    <div className="toast-stack">
-      <div className="card toast" role="status" aria-live="polite">
-        <div className="toast-icon">
-          <Icon name="check" size={14} />
-        </div>
-        <div className="toast-body">
-          <div className="toast-title">Attendance marked</div>
-          <div className="toast-sub">
-            {STATUS_LABEL[info.status] ?? info.status} · {date} at {time}
-          </div>
-        </div>
-        <button className="toast-close" aria-label="Dismiss" onClick={() => setInfo(null)}>
-          <Icon name="close" size={14} />
-        </button>
+    <div className="card toast" role="status" aria-live="polite">
+      <div className="toast-icon">
+        <Icon name="check" size={14} />
       </div>
+      <div className="toast-body">
+        <div className="toast-title">Attendance marked</div>
+        <div className="toast-sub">
+          {STATUS_LABEL[info.status] ?? info.status} · {date} at {time}
+        </div>
+      </div>
+      <button className="toast-close" aria-label="Dismiss" onClick={() => setInfo(null)}>
+        <Icon name="close" size={14} />
+      </button>
     </div>
   );
 }

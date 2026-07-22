@@ -7,3 +7,5 @@ __pycache__/
 *.pyc
 backups/
 var/screen-recordings/
+var/student-photos/
+var/assignment-attachments/

@@ -62,6 +62,15 @@ model User {
   screenViewSessionsAsTeacher ScreenViewSession[] @relation("ScreenViewTeacher")
   screenRecordingsAsStudent   ScreenRecording[]   @relation("ScreenRecordingStudent")
   screenRecordingsAsTeacher   ScreenRecording[]   @relation("ScreenRecordingTeacher")
+  classesOwned                Class[]             @relation("ClassTeacher")
+  classEnrollments            ClassEnrollment[]   @relation("ClassEnrollmentStudent")
+  studentProfile              StudentProfile?
+  messagesAuthored            Message[]           @relation("MessageTeacher")
+  messagesTargeted            Message[]           @relation("MessageTargetStudent")
+  messageRecipients           MessageRecipient[]
+  exercisesAuthored           Exercise[]           @relation("ExerciseTeacher")
+  exercisesTargeted           Exercise[]           @relation("ExerciseTargetStudent")
+  assignmentItemChecks        AssignmentItemCheck[]
 }
 
 model PC {
@@ -170,6 +179,114 @@ model ActivitySegment {
 }
 
 // ============================================================
+// CLASSES — teacher-organized student groups (roadmap phase 1)
+// ============================================================
+
+model Class {
+  id        String   @id @default(cuid())
+  name      String
+  teacherId String
+  teacher   User     @relation("ClassTeacher", fields: [teacherId], references: [id])
+  createdAt DateTime @default(now())
+
+  // Optional scheduled weekday start time, minutes since local midnight
+  // (0-1439, e.g. 9:00am = 540). Same time every weekday. Null = no
+  // schedule set = opt-out (auto-mark always PRESENT, today's exact
+  // behavior). Compared against at.getHours()*60+at.getMinutes() in
+  // markPresentIfUnset — same local-getters-are-authoritative convention
+  // as startOfDay/isWeekend (docs/05-implementation-notes.md); no
+  // @db.Time column or timezone conversion needed (fixed Asia/Karachi
+  // deployment, no DST).
+  scheduledStartMinutes Int?
+
+  enrollments       ClassEnrollment[]
+  messagesTargeted  Message[]
+  exercisesTargeted Exercise[]
+
+  @@index([teacherId])
+}
+
+// A student belongs to exactly one ACTIVE class at a time (leftAt IS
+// NULL), but full enrollment history is preserved — never overwritten,
+// never deleted. "Active" is an application-level convention enforced in
+// src/lib/classes.ts's enrollStudent, the same way Session.endedAt /
+// ScreenViewSession.endedAt are — no DB constraint.
+model ClassEnrollment {
+  id        String    @id @default(cuid())
+  studentId String
+  student   User      @relation("ClassEnrollmentStudent", fields: [studentId], references: [id])
+  classId   String
+  class     Class     @relation(fields: [classId], references: [id])
+  joinedAt  DateTime  @default(now())
+  leftAt    DateTime?
+
+  @@index([studentId, leftAt])
+  @@index([classId, leftAt])
+}
+
+// ============================================================
+// STUDENT PROFILES — enrollment details (roadmap phase 2)
+// ============================================================
+
+enum CourseType {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  DIPLOMA
+  OTHER
+}
+
+enum StudentCategory {
+  PAYING
+  ORPHAN
+  STAFF
+  OTHER
+}
+
+enum Residency {
+  DAY_SCHOLAR
+  HOSTELIZED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+// 1:1 with User, split out because none of this applies to TEACHER rows.
+// educationLevel/educationStatus are deliberately free text (not enums)
+// — real-world values (Matric/O-levels/Intermediate/Bachelors, "currently
+// studying"/"graduated"/"dropped out") vary too much for a fixed list.
+model StudentProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  fatherName String
+  contact    String
+  address    String
+  gender     Gender
+
+  courseType      CourseType
+  courseTypeOther String? // only meaningful when courseType == OTHER
+
+  category  StudentCategory
+  residency Residency
+
+  educationLevel  String
+  educationStatus String
+
+  // Relative filename only ("<studentId>.<ext>") — bytes live on disk
+  // under STUDENT_PHOTOS_DIR (src/lib/studentPhotoStorage.ts), never in
+  // Postgres, same metadata-only pattern as ScreenRecordingFrame.
+  photoPath     String?
+  photoMimeType String? // stored directly rather than re-derived from the extension
+
+  createdAt DateTime @default(now())
+}
+
+// ============================================================
 // CURRICULUM — modules, exercises, progress
 // ============================================================
 
@@ -185,15 +302,54 @@ model CurriculumModule {
   progress  ProgressRecord[]
 }
 
+// Homework/assignments (roadmap phase 8). moduleId is nullable — null means
+// generic class homework (e.g. "Homework for This Weekend"), not tied to
+// any curriculum topic; a non-null moduleId is the original
+// curriculum-linked-exercise concept, unused so far but left intact.
+// Targeting is exactly one of classId / targetStudentId, enforced in
+// src/lib/homework.ts, not a DB constraint — no third "ALL" option for
+// homework (unlike Message), so no targetType enum column is needed.
 model Exercise {
-  id          String           @id @default(cuid())
-  moduleId    String
-  module      CurriculumModule @relation(fields: [moduleId], references: [id])
+  id String @id @default(cuid())
+
+  moduleId String?
+  module   CurriculumModule? @relation(fields: [moduleId], references: [id])
+
+  teacherId String
+  teacher   User   @relation("ExerciseTeacher", fields: [teacherId], references: [id])
+
+  classId         String?
+  class           Class?  @relation(fields: [classId], references: [id])
+  targetStudentId String?
+  targetStudent   User?   @relation("ExerciseTargetStudent", fields: [targetStudentId], references: [id])
+
   title       String
   description String?
   dueDate     DateTime?
 
+  items       AssignmentItem[]
   submissions Submission[]
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([targetStudentId])
+}
+
+// One checklist row inside an assignment. requiresSubmission distinguishes
+// a self-checked soft task ("watch a movie") from one needing the real
+// overall Submission to count as done. order mirrors Question.order's
+// precedent (up/down swap, no drag-and-drop).
+model AssignmentItem {
+  id                 String   @id @default(cuid())
+  exerciseId         String
+  exercise           Exercise @relation(fields: [exerciseId], references: [id])
+  label              String
+  requiresSubmission Boolean  @default(false)
+  order              Int      @default(0)
+
+  checks AssignmentItemCheck[]
+
+  @@index([exerciseId])
 }
 
 enum SubmissionStatus {
@@ -204,16 +360,42 @@ enum SubmissionStatus {
 }
 
 model Submission {
-  id          String           @id @default(cuid())
-  exerciseId  String
-  exercise    Exercise         @relation(fields: [exerciseId], references: [id])
-  studentId   String
-  student     User             @relation(fields: [studentId], references: [id])
-  content     String? // code, text, or uploaded file path
+  id         String   @id @default(cuid())
+  exerciseId String
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+  studentId  String
+  student    User     @relation(fields: [studentId], references: [id])
+
+  body               String? // free-text write-up
+  linkUrl            String? // optional external link
+  attachmentPath     String? // relative filename on disk — see assignmentAttachmentStorage.ts
+  attachmentMimeType String?
+
   submittedAt DateTime         @default(now())
   status      SubmissionStatus @default(SUBMITTED)
   grade       Float?
   feedback    String?
+  gradedAt    DateTime? // set alongside grade/feedback — lets the UI compare against submittedAt to flag "resubmitted since last graded"
+
+  @@unique([exerciseId, studentId])
+  @@index([studentId])
+}
+
+// Per-item, per-student completion for self-checked tasks. Keyed by
+// (itemId, studentId), NOT submissionId — a student can check a soft item
+// without ever creating a Submission (that's only for items where
+// requiresSubmission is true).
+model AssignmentItemCheck {
+  id        String         @id @default(cuid())
+  itemId    String
+  item      AssignmentItem @relation(fields: [itemId], references: [id])
+  studentId String
+  student   User           @relation(fields: [studentId], references: [id])
+  checked   Boolean        @default(false)
+  checkedAt DateTime?
+
+  @@unique([itemId, studentId])
+  @@index([studentId])
 }
 
 enum ProgressStatus {
@@ -420,4 +602,60 @@ model ScreenRecordingFrame {
   capturedAt  DateTime        @default(now())
 
   @@index([recordingId, capturedAt])
+}
+
+// ============================================================
+// MESSAGES — one-way teacher → student announcements (phase 6)
+// ============================================================
+
+enum MessageUrgency {
+  NORMAL
+  IMPORTANT
+  URGENT
+}
+
+enum MessageTargetType {
+  STUDENT
+  CLASS
+  ALL
+}
+
+// A teacher-authored broadcast. Audience is resolved and materialized at
+// send-time into MessageRecipient rows — targetClassId/targetStudentId
+// here are kept ONLY for audit/display of what was originally targeted,
+// never re-queried to recompute who should see it. No edit/supersede
+// chain (unlike JournalEntry) — retraction only, per locked scope.
+model Message {
+  id              String            @id @default(cuid())
+  teacherId       String
+  teacher         User              @relation("MessageTeacher", fields: [teacherId], references: [id])
+  urgency         MessageUrgency    @default(NORMAL)
+  targetType      MessageTargetType
+  targetClassId   String?
+  targetClass     Class?            @relation(fields: [targetClassId], references: [id])
+  targetStudentId String?
+  targetStudent   User?             @relation("MessageTargetStudent", fields: [targetStudentId], references: [id])
+  body            String
+  createdAt       DateTime          @default(now())
+
+  retractedAt DateTime? // soft-delete only, set by the sending teacher, row never removed
+
+  recipients MessageRecipient[]
+
+  @@index([teacherId])
+}
+
+// One row per (Message, recipient student) — materialized at send-time,
+// never computed dynamically. Gives each recipient their own independent
+// readAt, which a dynamically-resolved audience couldn't support cleanly.
+model MessageRecipient {
+  id        String    @id @default(cuid())
+  messageId String
+  message   Message   @relation(fields: [messageId], references: [id])
+  studentId String
+  student   User      @relation(fields: [studentId], references: [id])
+  readAt    DateTime?
+
+  @@unique([messageId, studentId])
+  @@index([studentId, readAt])
 }

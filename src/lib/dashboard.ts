@@ -8,6 +8,18 @@ export async function getAvgExamScorePercent(studentId: string): Promise<number>
   return records.length > 0 ? Math.round(records.reduce((sum, r) => sum + r.scorePercent, 0) / records.length) : 0;
 }
 
+/** Exam attempt/pass counts for a student — sibling to getAvgExamScorePercent
+ *  rather than reshaping its existing number-returning signature, which
+ *  getStudentDashboard/getStudentMetrics/getAllStudentsSummary all already
+ *  depend on as a plain number. */
+export async function getExamCounts(studentId: string): Promise<{ examsTaken: number; examsPassed: number }> {
+  const [examsTaken, examsPassed] = await Promise.all([
+    db.examRecord.count({ where: { studentId } }),
+    db.examRecord.count({ where: { studentId, passed: true } }),
+  ]);
+  return { examsTaken, examsPassed };
+}
+
 export type StudentDashboard = {
   progressPercent: number;
   streak: number;
@@ -52,13 +64,19 @@ export type TeacherConsole = {
   studentCount: number;
   presentToday: number;
   examStats: { title: string; attempted: number; passed: number }[];
+  girlsCount: number;
+  boysCount: number;
+  hostelizedCount: number;
+  dayScholarCount: number;
 };
 
 export async function getTeacherConsole(today: Date): Promise<TeacherConsole> {
-  const [studentCount, todayAttendance, exams] = await Promise.all([
+  const [studentCount, todayAttendance, exams, genderCounts, residencyCounts] = await Promise.all([
     db.user.count({ where: { role: "STUDENT" } }),
     db.attendance.findMany({ where: { date: today } }),
     db.exam.findMany({ where: { status: "PUBLISHED" } }),
+    db.studentProfile.groupBy({ by: ["gender"], _count: true }),
+    db.studentProfile.groupBy({ by: ["residency"], _count: true }),
   ]);
 
   const presentToday = todayAttendance.filter((a) => a.status === "PRESENT" || a.status === "LATE").length;
@@ -70,5 +88,11 @@ export async function getTeacherConsole(today: Date): Promise<TeacherConsole> {
     })
   );
 
-  return { studentCount, presentToday, examStats };
+  // Gender.OTHER counts toward studentCount but not either binary bucket below.
+  const girlsCount = genderCounts.find((g) => g.gender === "FEMALE")?._count ?? 0;
+  const boysCount = genderCounts.find((g) => g.gender === "MALE")?._count ?? 0;
+  const hostelizedCount = residencyCounts.find((r) => r.residency === "HOSTELIZED")?._count ?? 0;
+  const dayScholarCount = residencyCounts.find((r) => r.residency === "DAY_SCHOLAR")?._count ?? 0;
+
+  return { studentCount, presentToday, examStats, girlsCount, boysCount, hostelizedCount, dayScholarCount };
 }

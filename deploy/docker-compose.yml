@@ -31,6 +31,11 @@ services:
       # in-container folder, or "Save this session" data silently vanishes
       # on the next deploy.
       - screen_recordings:/app/var/screen-recordings
+      # Student enrollment photos — same rebuild-survival requirement as
+      # screen recordings above.
+      - student_photos:/app/var/student-photos
+      # Homework submission attachments — same rebuild-survival requirement.
+      - assignment_attachments:/app/var/assignment-attachments
 
   backup:
     image: postgres:17
@@ -50,3 +55,5 @@ services:
 volumes:
   pgdata:
   screen_recordings:
+  student_photos:
+  assignment_attachments:
