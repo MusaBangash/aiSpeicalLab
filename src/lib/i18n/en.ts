@@ -13,6 +13,7 @@ export const en = {
     messages: "Messages",
     homework: "Homework",
     questions: "Questions",
+    notifications: "Notifications",
   },
   common: {
     signIn: "Sign in",

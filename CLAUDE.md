@@ -1212,6 +1212,139 @@ pieces. All test students/teachers/labs/PCs/recordings/sessions created
 for verification were deleted afterward; the one pre-existing real
 screen recording in the dev DB was left untouched.
 
+## Post-roadmap work — CI/git hooks + unified "Learning DNA" summary + notification center (2026-07-25)
+
+Three more gaps closed as one unit of work, directly following the
+previous round (tests, retention, bulk-import). The test suite built
+last round only ran if a developer remembered to type `npm test` — no
+automated gate existed. The original "AI Learning DNA" vision called
+for one composite, narrative student profile, but attendance/exams/
+journal/rank/doubts still lived as separate sections across separate
+pages (Doubts wasn't even visible on the teacher's per-student page at
+all). Toasts and nav badges for attendance/messages/doubts were three
+independent, uncoordinated mechanisms with no unified inbox. One scope
+question was resolved with the user via `AskUserQuestion` before
+planning: the DNA view **enhances the existing profile pages** (a new
+card at the top of each), not a new separate route.
+
+**CI + git hooks**: `package.json` gained `typecheck` (`tsc --noEmit`)
+and `prepare` (`husky`) scripts, plus `husky` as a devDependency.
+`.husky/pre-commit` runs `typecheck` + `test:unit` (fast, no DB
+dependency); `.husky/pre-push` runs the full suite (`test:db:migrate`
+then `npm test` — a push is the natural "about to be seen by CI"
+checkpoint, by which point the developer's local Postgres is already
+running). New `.github/workflows/ci.yml`: a `postgres:17` service
+container (matches prod's image exactly), `npm ci` → **`npx prisma
+generate`** (required — `npm ci` alone doesn't generate the client, no
+`postinstall` hook exists) → `npx prisma migrate deploy` against the
+service's `TEST_DATABASE_URL` (supplied directly as a workflow env var,
+**not** `npm run test:db:migrate`, which hardcodes reading a local
+`.env.test` that won't exist in CI — `tests/setup.ts`'s
+`dotenv.config()` silently no-ops on a missing file without touching
+`process.env`, which is exactly what makes this work) → `typecheck` →
+`npm test`. No `next build` step — deliberately out of scope, keeps the
+gate fast.
+
+**Unified "Learning DNA" summary**: new `src/lib/dna.ts` — pure, zero
+DB imports, mirrors `rank.ts`'s `computeRank` convention ("takes
+already-fetched stats, no DB access") and is genuinely unit-testable
+(`dna.test.ts`, 14 tests). `computeScoreTrend` compares the latest
+`ExamRecord` score against the average of everything before it (±3pp
+treated as flat); `pickWeakestTopic` reuses `getStudentTopicBreakdown`'s
+existing weakest-first sort, skipping any topic under a
+`MIN_TOPIC_SAMPLE_SIZE = 3` answered-question floor so one lucky/unlucky
+question can't look like a real weak spot; `countDoubtsOnTopicThisTerm`
+matches `Doubt.moduleTitle` against the current calendar month (same
+"term" definition as `getTermAttendancePercent`); `generateDnaSummary`
+composes all of it into one deterministic, template-based sentence —
+**explicitly not an LLM call**, per this app's offline-LAN constraint.
+The "independence signal" the original roadmap notes asked about is
+folded directly into the sentence (`INDEPENDENCE_THRESHOLD = 3`
+this-term doubts on the weakest topic flips the clause from "tackled
+mostly independently" to "leans on help with X"); "learning velocity"
+(attempts-to-mastery per topic) is explicitly scoped out — `ExamRecord`/
+`ExamAttempt` are keyed to whole exams, not topics, so it needs new
+per-topic attempt-sequencing logic beyond what exists today.
+
+New `DnaSummaryCard.tsx` (narrative paragraph + a stat-highlights row —
+average score, attendance, current streak, rank, and weakest topic if
+any — reusing the `.legend`/`.lg` classes already built for the
+attendance-heatmap legend, zero new CSS) and `RecentDoubtsCard.tsx`
+(last 5 doubts via the already-existing, already-sorted
+`getDoubtsForStudent`, reusing `DoubtHistoryCard` per row unmodified,
+a "View all" link to the full doubts page) sit right after
+`PageHeader` on both `/teacher/students/[studentId]` and
+`/student/progress` — confirmed live to render the **byte-identical**
+narrative sentence on both pages for the same student, proving actual
+unification rather than two similar-looking cards. `TopicBreakdown.tsx`
+was refactored from self-fetching (`{studentId}` prop, its own internal
+`getStudentTopicBreakdown` call) to prop-driven (`{rows}`), since both
+pages now need those same rows for the summary calculation anyway —
+avoids a duplicate 5-query fetch, and was safe since the component had
+exactly two call sites, both now updated.
+
+**Notification center (student-facing only, deliberately asymmetric)**:
+teachers never receive messages (`Message` is teacher-authored,
+one-way) and already have a working doubts-count nav badge, so a
+teacher-side notification center would be redundant — this is
+intentionally student-side only. `AttendanceToast` stays completely
+untouched (an ephemeral same-login confirmation, not a persistent
+actionable item); `UnreadMessagesToast` also stays untouched — only its
+underlying "unread messages" signal gets folded into the new unified
+badge, confirmed live via a rendered-HTML count that `.toast-stack`
+still wraps both toasts exactly once (no regression of the wrapper bug
+fixed back in Phase 6).
+
+Schema gained two nullable, no-default columns (migration
+`add_notification_seen_tracking`, applied cleanly non-interactively —
+plain nullable additions don't trigger Prisma's confirmation-prompt
+wall): `Doubt.studentSeenAt` (named to disambiguate from
+`answeredAt`/`resolvedAt`, which are teacher-side event timestamps on
+the same model) and `StudentBadge.seenAt`. **Confirmed, not assumed**:
+neither `answerDoubt` nor `awardBadgeIfMissing`/
+`checkAndAwardExamBadges`/`checkAndAwardLoginBadges` needed any code
+change — their `data:` objects never reference these fields, so rows
+are created with them staying `NULL` until the notifications page later
+sets them.
+
+New `src/lib/notifications.ts`: `getNotificationsForStudent` merges
+`getInboxForStudent` + `getDoubtsForStudent` (filtered to answered) +
+`getBadgeShelf` (filtered to earned) into one newest-first list — full
+history always returned, never filtered by seen/unseen, same
+"everything visible, only the badge signals what's new" convention
+already used by messages/doubts. `getUnseenNotificationCount` sums
+`getUnreadCount` (reused from `messages.ts`) + unseen-answered-doubts +
+unseen-earned-badges. `markAllNotificationsSeen` bulk-marks all three in
+parallel, called once on `/student/notifications` page load — same
+fetch-then-mark-read-on-every-load convention already used by
+`/student/messages`. New `bell` icon in `Icon.tsx`; the student nav's
+Messages item lost its own badge (would otherwise double-count against
+the unified one) in favor of a new Notifications item placed right
+before it.
+
+Live-verified end-to-end via `npm test` (98 tests, 20 files, including
+a new 2-test integration suite seeding one unread message + one
+answered-unseen doubt + one earned-unseen badge, asserting the count is
+exactly 3 then 0 after marking seen while the full-history list still
+returns all 3 both times) + `tsc --noEmit` + curl against the real
+running dev server logged in as a real seeded teacher and student
+(`bangash@stlab.local` / `ahmad.ali@student.stlab.local`): the DNA
+narrative sentence rendered identically on both the teacher-profile and
+student-progress pages using this student's genuine exam/attendance/
+doubts/rank data; `TopicBreakdown`'s prop-driven refactor rendered the
+same weakest-topic row (`Neural network basics`, 2/8, 25%) the summary
+sentence referenced; the nav badge showed `1` (this student's real,
+pre-existing `TEAM_PLAYER` badge from the Phase 10 write-up, correctly
+still unseen) and dropped to `0` immediately after visiting
+`/student/notifications`, whose full history correctly still showed
+all 3 signals (badge + 2 messages) after the count cleared; cross-role
+307 redirects confirmed in both directions
+(`/teacher/students`→student, `/student/notifications`→teacher); zero
+runtime errors in the dev server log across every request. No new test
+rows were created in the dev database during this verification — only
+a real, already-existing student's `seenAt`/`studentSeenAt` fields were
+set, which is the feature working as intended, not test pollution.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.
@@ -1233,6 +1366,13 @@ screen recording in the dev DB was left untouched.
   gitignored `.env.test` (see `.env.example`), and `npm run
   test:db:migrate` to apply migrations to it — same container as
   `DATABASE_URL`, never the dev database itself.
+- **Git hooks are live** (Husky v9, `.husky/pre-commit` +
+  `.husky/pre-push`) — `npm install` runs `prepare` automatically, which
+  wires them up. Pre-commit runs typecheck + unit tests only (fast, no
+  DB); pre-push runs the full suite including integration tests, so
+  local Postgres must be reachable before pushing. CI
+  (`.github/workflows/ci.yml`) runs the same full gate against a fresh
+  `postgres:17` service container on every push/PR to `main`.
 
 ## Conventions to keep following
 
@@ -1253,8 +1393,8 @@ screen recording in the dev DB was left untouched.
   `add_journal_entry_audit_trail`, `add_screen_view_sessions`,
   `add_classes`, `add_student_profiles`, `add_class_schedule`,
   `add_messages`, `add_homework_assignments`, `add_doubts`,
-  `add_student_badges`, `add_password_reset_and_question_topics` — all
-  additive, no renames.
+  `add_student_badges`, `add_password_reset_and_question_topics`,
+  `add_notification_seen_tracking` — all additive, no renames.
 - `var/student-photos/` (phase 2 enrollment photos) is gitignored and
   needs its own Docker volume in production, same as
   `var/screen-recordings/` — flat one-file-per-student, original format
@@ -1298,11 +1438,13 @@ confirmed a manual live click-through in a real browser. No longer a gap.
 - `src/app/api/agent/session/route.ts` is still a 501 stub by design —
   real agent lockdown is out of scope for v1; only the heartbeat
   contract (`/api/agent/heartbeat`) needs to work, and it does.
-- Saved screen recordings (phase 4) are retained **indefinitely** by
-  confirmed decision — no auto-delete anywhere. Worth a real retention
-  policy (e.g. auto-expire after N days) before this goes to 200+
-  schools; not urgent for the single-lab pilot, but don't let it slide
-  silently once real deployment planning starts.
+- Saved screen recordings (phase 4) are **no longer** retained
+  indefinitely — a 90-day auto-delete policy (`sweepExpiredRecordings`,
+  `src/lib/screenView.ts`) was added in the automated-tests/retention/
+  bulk-import round (2026-07-25) and is wired into `/api/cron/sweep`.
+  This note is stale as a "known gap" — kept only as a pointer to where
+  the policy lives, in case the retention window itself needs revisiting
+  before a real 200+-school rollout.
 
 ## Where to look for more detail
 

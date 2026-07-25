@@ -30,6 +30,7 @@ const PATHS = {
   megaphone: '<path d="M3.5 10.5v3a1.5 1.5 0 001.5 1.5h1l1.2 4.2a1.3 1.3 0 001.25.9h.3a1.3 1.3 0 001.25-1.66L9 15h.5l9-3.5v-3l-9-3.5H6a2.5 2.5 0 00-2.5 2.5z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M18.5 8.5v6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>',
   question: '<path d="M4 5.5A2 2 0 016 3.5h12a2 2 0 012 2v9a2 2 0 01-2 2H9l-4 3.5v-3.5H6a2 2 0 01-2-2z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M9.6 9.3c0-1.4 1.1-2.3 2.5-2.3 1.3 0 2.3.8 2.3 2 0 1.6-2.4 1.7-2.4 3.4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="12" cy="15.3" r="0.95" fill="currentColor"/>',
   medal: '<path d="M8.5 3.5L6 9.8l3.4 1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 3.5L18 9.8l-3.4 1" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="15" r="5.3" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 12.2v2.8l2 1.2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>',
+  bell: '<path d="M6 10.5a6 6 0 0112 0v3.8l1.7 2.7H4.3L6 14.3z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M9.5 19a2.5 2.5 0 005 0" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>',
 } as const;
 
 export type IconName = keyof typeof PATHS;

@@ -6,9 +6,14 @@ import { getStudentMetrics, JOURNAL_CATEGORIES } from "@/lib/metrics";
 import { getStudentActivity, isIdle } from "@/lib/activity";
 import { getStudentJoinDate } from "@/lib/classes";
 import { getExamCounts } from "@/lib/dashboard";
-import { computeLongestStreak, countDaysPresent, getStudentMonthAttendanceCells, listMonthsDescending } from "@/lib/attendance";
+import { computeLongestStreak, computeStreak, countDaysPresent, getStudentMonthAttendanceCells, listMonthsDescending } from "@/lib/attendance";
 import { getStudentRankStatus } from "@/lib/rank";
 import { getBadgeShelf } from "@/lib/badges";
+import { getStudentTopicBreakdown } from "@/lib/exam";
+import { getDoubtsForStudent } from "@/lib/doubts";
+import { computeScoreTrend, pickWeakestTopic, countDoubtsOnTopicThisTerm, generateDnaSummary } from "@/lib/dna";
+import { DnaSummaryCard, type DnaHighlight } from "@/components/students/DnaSummaryCard";
+import { RecentDoubtsCard } from "@/components/doubts/RecentDoubtsCard";
 import { RankLadderCard } from "@/components/rank/RankLadderCard";
 import { BadgeShelf } from "@/components/rank/BadgeShelf";
 import { BadgeAwardActions } from "@/components/rank/BadgeAwardActions";
@@ -60,22 +65,47 @@ export default async function TeacherStudentDetailPage({
   const student = await db.user.findUnique({ where: { id: studentId } });
   if (!student || student.role !== "STUDENT") redirect("/teacher/students");
 
-  const [metrics, activity, recordings, profile, joinDate, allAttendance, examCounts, rankStatus, badgeShelf] = await Promise.all([
-    getStudentMetrics(studentId),
-    getStudentActivity(studentId),
-    getRecordingsForStudent(session.user.id, studentId),
-    db.studentProfile.findUnique({ where: { userId: studentId } }),
-    getStudentJoinDate(studentId),
-    db.attendance.findMany({ where: { studentId } }), // all-time — reused for BOTH longest streak AND total-days-present
-    getExamCounts(studentId),
-    getStudentRankStatus(studentId),
-    getBadgeShelf(studentId),
-  ]);
+  const [metrics, activity, recordings, profile, joinDate, allAttendance, examCounts, rankStatus, badgeShelf, topicRows, doubts, examRecordsForTrend] =
+    await Promise.all([
+      getStudentMetrics(studentId),
+      getStudentActivity(studentId),
+      getRecordingsForStudent(session.user.id, studentId),
+      db.studentProfile.findUnique({ where: { userId: studentId } }),
+      getStudentJoinDate(studentId),
+      db.attendance.findMany({ where: { studentId } }), // all-time — reused for BOTH longest streak AND total-days-present
+      getExamCounts(studentId),
+      getStudentRankStatus(studentId),
+      getBadgeShelf(studentId),
+      getStudentTopicBreakdown(studentId),
+      getDoubtsForStudent(studentId),
+      db.examRecord.findMany({ where: { studentId }, select: { scorePercent: true, updatedAt: true } }),
+    ]);
 
   const longestStreak = computeLongestStreak(allAttendance);
   const totalDaysPresent = countDaysPresent(allAttendance);
   const months = joinDate ? listMonthsDescending(joinDate, new Date()) : [];
   const monthCells = await Promise.all(months.map((m) => getStudentMonthAttendanceCells(studentId, m.year, m.month)));
+
+  const weakestTopic = pickWeakestTopic(topicRows);
+  const doubtsOnWeakestTopicThisTerm = weakestTopic ? countDoubtsOnTopicThisTerm(doubts, weakestTopic.moduleTitle) : 0;
+  const dnaSummary = generateDnaSummary({
+    avgScorePercent: metrics.avgScorePercent,
+    examsTaken: examCounts.examsTaken,
+    scoreTrend: computeScoreTrend(examRecordsForTrend),
+    weakestTopic,
+    doubtsOnWeakestTopicThisTerm,
+    attendancePercent: metrics.attendancePercent,
+    rankName: rankStatus.rank.currentRank,
+  });
+  const dnaHighlights: DnaHighlight[] = [
+    { label: "Average score", value: `${metrics.avgScorePercent}%` },
+    { label: "Attendance", value: `${metrics.attendancePercent}%`, color: "var(--leaf-soft)" },
+    { label: "Current streak", value: `${computeStreak(allAttendance, new Date())} days`, color: "var(--gold-mist)" },
+    { label: "Rank", value: rankStatus.rank.currentRank, color: "var(--gold-soft)" },
+    ...(weakestTopic
+      ? [{ label: "Weakest topic", value: `${weakestTopic.moduleTitle} (${weakestTopic.percentCorrect}%)`, color: "var(--coral-soft)" }]
+      : []),
+  ];
 
   const journalEntries = metrics.entries.map((e) => ({
     id: e.id,
@@ -92,6 +122,9 @@ export default async function TeacherStudentDetailPage({
   return (
     <div className="page-anim">
       <PageHeader title={student.name} />
+
+      <DnaSummaryCard summary={dnaSummary} highlights={dnaHighlights} />
+      <RecentDoubtsCard doubts={doubts} viewAllHref="/teacher/doubts" />
 
       {profile ? (
         <Card className="feed-card" style={{ marginBottom: 16, display: "flex", gap: 20, alignItems: "flex-start" }}>
@@ -217,7 +250,7 @@ export default async function TeacherStudentDetailPage({
       )}
 
       <ExamScoreTrend studentId={studentId} />
-      <TopicBreakdown studentId={studentId} />
+      <TopicBreakdown rows={topicRows} />
 
       <Card className="feed-card" style={{ marginTop: 16, marginBottom: 16 }}>
         <div className="feed-title">Journal timeline</div>

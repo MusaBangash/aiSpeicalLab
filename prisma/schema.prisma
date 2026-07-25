@@ -717,9 +717,16 @@ model Doubt {
   resolvedBy   User?     @relation("DoubtResolvedBy", fields: [resolvedById], references: [id])
   resolvedAt   DateTime?
 
+  // Set when the ASKING student first views /student/notifications after
+  // this doubt was answered. Named studentSeenAt (not seenAt) to
+  // disambiguate from answeredAt/resolvedAt, which are teacher-side event
+  // timestamps on this same model.
+  studentSeenAt DateTime?
+
   @@index([studentId])
   @@index([moduleId])
   @@index([answeredAt])
+  @@index([studentId, studentSeenAt])
 }
 
 // ============================================================
@@ -756,7 +763,9 @@ model StudentBadge {
   earnedAt    DateTime  @default(now())
   awardedById String?
   awardedBy   User?     @relation("StudentBadgeAwardedBy", fields: [awardedById], references: [id])
+  seenAt      DateTime? // set when the student first views the notifications page after earning it
 
   @@unique([studentId, type])
   @@index([studentId])
+  @@index([studentId, seenAt])
 }

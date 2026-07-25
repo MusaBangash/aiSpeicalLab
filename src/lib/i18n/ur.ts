@@ -20,6 +20,7 @@ export const ur: Dictionary = {
     messages: "Messages",
     homework: "Homework",
     questions: "Questions",
+    notifications: "Notifications",
   },
   common: {
     signIn: "Sign in",

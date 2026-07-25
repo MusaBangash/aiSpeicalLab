@@ -1,9 +1,7 @@
-import { getStudentTopicBreakdown } from "@/lib/exam";
+import type { TopicBreakdownRow } from "@/lib/exam";
 import { Card } from "@/components/ui/Card";
 
-export async function TopicBreakdown({ studentId }: { studentId: string }) {
-  const rows = await getStudentTopicBreakdown(studentId);
-
+export function TopicBreakdown({ rows }: { rows: TopicBreakdownRow[] }) {
   if (rows.length === 0) {
     return (
       <Card className="feed-card">
