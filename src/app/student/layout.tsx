@@ -18,6 +18,7 @@ export default async function StudentLayout({ children }: { children: ReactNode 
     { href: "/student/exercises", label: t.nav.exercises, icon: "pencil" },
     { href: "/student/exams", label: t.nav.exams, icon: "award" },
     { href: "/student/messages", label: t.nav.messages, icon: "megaphone", badge: unreadCount || undefined },
+    { href: "/student/doubts", label: t.nav.questions, icon: "question" },
     { href: "/student/attendance", label: t.nav.attendance, icon: "calendar" },
     { href: "/student/progress", label: t.nav.progress, icon: "chart" },
     { href: "/student/settings", label: t.nav.settings, icon: "gear" },

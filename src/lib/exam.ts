@@ -5,6 +5,7 @@
  */
 import type { AttemptStatus, ExamAttempt } from "@prisma/client";
 import { db } from "./db";
+import { checkAndAwardExamBadges } from "./badges";
 
 export type StartBlock =
   | { blocked: false }
@@ -311,6 +312,13 @@ export async function finishAttempt(attemptId: string, auto: boolean): Promise<F
       },
     });
   });
+
+  try {
+    await checkAndAwardExamBadges(attempt.studentId, scorePercent, passed);
+  } catch (err) {
+    console.error("badge award failed on exam finish", err);
+    // deliberately swallowed — a badge-award bug must never block the exam result
+  }
 
   return { scorePercent, passed, correctCount, totalCount, verificationId: record.verificationId };
 }

@@ -944,3 +944,124 @@
   font-size: 13px;
   color: var(--muted);
 }
+
+/* ---- Rank & Badges (Phase 10) ---- */
+.rank-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.rank-shield {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--leaf-soft);
+  color: var(--leaf);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.rank-title {
+  font-size: 18px;
+  font-weight: 800;
+}
+.rank-sub {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+.rank-next-caption {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.rank-ladder-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.rank-points-breakdown {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--gold-mist);
+}
+.rpb-row {
+  display: flex;
+  flex-direction: column;
+}
+.rpb-val {
+  font-size: 17px;
+  font-weight: 800;
+}
+.rpb-label {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.rank-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.badge-tile {
+  border: 1.5px solid var(--line-2);
+  border-radius: 14px;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+.badge-tile-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.badge-tile.earned {
+  border-color: var(--gold);
+  background: var(--gold-mist);
+}
+.badge-tile.earned .badge-tile-icon {
+  background: var(--gold-soft);
+  color: var(--gold-deep);
+}
+.badge-tile.locked {
+  opacity: 0.55;
+}
+.badge-tile.locked .badge-tile-icon {
+  background: #f3efe4;
+  color: var(--faint);
+}
+.badge-tile-label {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.badge-tile-desc {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+.badge-tile-date {
+  font-size: 10.5px;
+  color: var(--muted);
+}

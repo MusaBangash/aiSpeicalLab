@@ -2,9 +2,13 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getStudentMetrics, JOURNAL_CATEGORIES } from "@/lib/metrics";
+import { getStudentRankStatus } from "@/lib/rank";
+import { getBadgeShelf } from "@/lib/badges";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/shell/Icon";
+import { RankLadderCard } from "@/components/rank/RankLadderCard";
+import { BadgeShelf } from "@/components/rank/BadgeShelf";
 
 const CATEGORY_LABELS: Record<string, string> = {
   PARTICIPATION: "Participation",
@@ -16,7 +20,11 @@ export default async function StudentProgressPage() {
   const session = await auth();
   if (!session || session.user.role !== "STUDENT") redirect("/login");
 
-  const metrics = await getStudentMetrics(session.user.id);
+  const [metrics, rankStatus, badgeShelf] = await Promise.all([
+    getStudentMetrics(session.user.id),
+    getStudentRankStatus(session.user.id),
+    getBadgeShelf(session.user.id),
+  ]);
   const activeEntries = metrics.entries.filter((e) => e.status === "ACTIVE");
 
   return (
@@ -55,6 +63,12 @@ export default async function StudentProgressPage() {
           </Card>
         ))}
       </div>
+
+      <Card className="feed-card" style={{ marginTop: 16, marginBottom: 16 }}>
+        <div className="feed-title">Rank &amp; Badges</div>
+        <RankLadderCard status={rankStatus} />
+        <BadgeShelf badges={badgeShelf} />
+      </Card>
 
       <Card className="feed-card" style={{ marginTop: 16 }}>
         <div className="feed-title">Entry history</div>

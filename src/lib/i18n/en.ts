@@ -12,6 +12,7 @@ export const en = {
     classes: "Classes",
     messages: "Messages",
     homework: "Homework",
+    questions: "Questions",
   },
   common: {
     signIn: "Sign in",

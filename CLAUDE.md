@@ -10,7 +10,7 @@ Learning system for a 12-PC AI Engineering Lab (Muslim Hands, Wazirabad),
 Next.js 15 App Router + TypeScript + Prisma/PostgreSQL, running on a LAN
 server that may be offline. Two roles: STUDENT and TEACHER.
 
-## Status: v1 core is built and working, plus three rounds of exam-management upgrades, plus all 4 phases of an advanced-attendance initiative (complete), plus phases 1-6 and 8 of a 10-phase "AI Learning DNA" roadmap (there is no phase 7 in the locked numbering)
+## Status: v1 core is built and working, plus three rounds of exam-management upgrades, plus all 4 phases of an advanced-attendance initiative (complete), plus all 10 phases of the "AI Learning DNA" roadmap (complete — there is no phase 7 in the locked numbering, so it ran 1-6 and 8-10)
 
 Everything below has been implemented **and live-verified** (not just
 written) — logged in, exercised via curl against the running dev server,
@@ -774,6 +774,225 @@ unaffected by the `Exercise`/`Submission` reshape. All test
 classes/students/teacher/assignments/files created for verification
 were deleted afterward.
 
+**"AI Learning DNA" roadmap — phase 9 (Q&A/doubt-tracking, 2026-07-25)**:
+the reverse direction of Phase 6's messaging — a student, stuck on
+something, submits a question tagged to a `CurriculumModule`; any
+teacher can see it in an inbox, answer it, and mark it resolved. Module
+tagging is required (confirmed with the user), not optional. Only
+Phase 10 (rank system) remains on the roadmap after this.
+
+New `Doubt` model, deliberately not named `Question` — that name is
+already taken by the exam engine's MCQ `Question`/`QuestionOption`
+models. Three named relations to `User` (`"DoubtStudent"`,
+`"DoubtAnsweredBy"`, `"DoubtResolvedBy"`) and one additive back-relation
+on `CurriculumModule` (`doubts Doubt[]`) — `CurriculumModule`'s other
+fields and `ProgressRecord` untouched. Status
+(unanswered/answered/resolved) is derived from which of two nullable
+timestamps (`answeredAt`, `resolvedAt`) are set, never stored — the
+same convention as `JournalEntry`'s computed status and homework's
+`isLate()`, chosen over a new enum since this is a simple two-milestone
+lifecycle, not a genuinely multi-value workflow.
+
+**No fan-out/recipient table, unlike `Message`.** A `Doubt` has a single
+asker and no audience — closer in shape to `JournalEntry` than to
+`Message`/`MessageRecipient`. **No ownership scoping on answer or
+resolve, unlike `Message`/`Exercise`.** Both of those are
+teacher-authored, so mutation is scoped to the authoring teacher; a
+`Doubt` is **student**-authored, so there is no teacher-creator to scope
+to — any teacher (role check only) may answer or resolve any doubt,
+matching the existing "any teacher can view any student's
+profile/homework roster" precedent for content with no natural
+single-teacher owner. Live-verified directly: a second, independent
+teacher account can see and act on a doubt asked while only the first
+teacher had touched it.
+
+**`answeredAt` is first-wins, direct analogy to `markPresentIfUnset`'s
+create-only semantics** — set once on the first answer
+(`doubt.answeredAt ?? new Date()`) and never overwritten, preserving
+response-time measurement, while `answerBody`/`answeredById` stay
+freely overwritable so a teacher can correct or take over an existing
+answer. **Live-verified with two distinct teacher accounts, not just a
+re-save by the same teacher** — Teacher A answered a doubt, Teacher B
+then edited the answer with different text: `answeredById` moved to
+Teacher B and `answerBody` changed, but `answeredAt` stayed
+byte-identical to the original timestamp.
+
+**Resolving requires an existing answer** — `resolveDoubt` rejects
+(400) a doubt with no `answeredAt` yet, confirmed live. **Resolving is
+idempotent**, not a 400-on-double-resolve like `retractMessage`'s
+double-retract guard — calling it again on an already-resolved doubt is
+a no-op success (`if (doubt.resolvedAt) return { ok: true }`), also
+confirmed live with `resolvedAt` unchanged across both calls.
+
+**No toasts anywhere for this feature** — explicit scope-discipline
+decision. The teacher-side nav badge (unanswered count) is the only
+passive notification surface, reusing the dormant `NavItem.badge`
+mechanism Phase 6 first activated for students — confirmed live: the
+badge showed the correct unanswered count and disappeared entirely
+once that last doubt was answered. A new `question` icon (speech
+bubble + `?` glyph) was added to `Icon.tsx` since no existing icon fit
+"ask a question" — `megaphone` was deliberately not reused (implies
+broadcast, the wrong direction). Both student and teacher nav items
+share one i18n key, `nav.questions: "Questions"` (added to both
+`en.ts`/`ur.ts`), rather than a verb-only label that would misfit the
+teacher-facing inbox.
+
+**Reused `ModuleField`/`resolveModuleId` (`src/components/exams/ModuleField.tsx`)
+unmodified** for the student ask-question form — same
+autocomplete-by-typed-name UX already used by exam creation/editing.
+Server-side `askDoubt` independently re-validates the submitted
+`moduleId` against a real row (never trusts the client's own
+resolution) — confirmed live: a request with a nonexistent `moduleId`
+correctly 404s. Teacher inbox UI (`DoubtInboxList.tsx`) mirrors
+homework's `AssignmentRosterTable.tsx`/`GradeSubmissionForm.tsx` inline
+pattern — one card per doubt with an inline answer form, no separate
+detail page. Student UI (`AskDoubtForm.tsx` + `DoubtHistoryCard.tsx`)
+mirrors `JournalEntryForm.tsx`/`JournalEntryCard.tsx`'s same-page
+form-above-history shape. No new CSS — reuses `.journal-entry-form`,
+`Card`, `Chip` (`"coral"` Unanswered / `"active"` Answered / `"done"`
+Resolved) exactly as prior phases did for equivalent UIs.
+
+Live-verified end-to-end via curl + direct DB checks: ask with a real
+module → one `Doubt` row, both timestamps null; ask with a bogus
+`moduleId` → 404; any teacher (confirmed with a temporary second
+teacher account) can view and answer a doubt neither of them created;
+first-wins `answeredAt` proven across two distinct teachers editing the
+same answer; resolve-without-answer → 400; resolve → then resolve again
+→ 200 idempotent no-op; nav badge count matched `getUnansweredCount()`
+before answering and correctly disappeared after; a student's
+`/student/doubts` showed only their own doubts (a second student saw
+none of them); role-guard 401s in both directions (student POSTing to
+answer/resolve, teacher POSTing to ask); regression-checked
+`/student/dashboard`'s progress ring, `/teacher/exams/new`'s module
+picker, and both homework pages (`/student/exercises`,
+`/teacher/homework`) all rendering exactly as before, confirming
+`CurriculumModule`/`ProgressRecord`/`Exercise.moduleId` were
+unaffected. All test doubts and the temporary second teacher account
+created for verification were deleted afterward.
+
+**"AI Learning DNA" roadmap — phase 10 (rank & promotion system,
+2026-07-25) — final phase, roadmap complete.** The capstone: a 6-rank
+ladder (Recruit → Apprentice → Builder → Engineer → Architect → Master
+Engineer) a student climbs automatically via tenure + points, plus an
+8-badge trophy shelf (6 auto-awarded, 2 teacher-awarded). Two design
+questions — the points formula/rank thresholds, and whether badges are
+repeatable — were resolved with the user via `AskUserQuestion` before
+planning; both recommended options were confirmed as-is.
+
+**Points are computed live on every read, never stored** — same
+convention as lateness/streaks/`JournalEntryStatus`: +10 per exam
+passed, +1 per 2 days present (all-time), +5 per high-rated (≥4) ACTIVE
+journal entry in Participation/Behaviour, +20 per badge earned (badges
+compound points on top of whatever raw stat earned them). Rank is also
+computed on read (`src/lib/rank.ts`'s `computeRank`) via a **top-down
+scan** of the ladder, not a sequential climb — necessary because
+Architect's and Master Engineer's extra gates (a badge, a nomination)
+are independent facts, not monotonic with tenure/points, while
+`minTenureMonths`/`minPoints` themselves are. Live-verified with 9
+boundary cases including both extra-gate-independence scenarios (met
+tenure/points but missing the badge/nomination correctly caps rank at
+the highest fully-satisfied tier).
+
+**Badges are stored rows** (`StudentBadge`, `@@unique([studentId,
+type])` — confirmed once per type, not repeatable), the opposite
+convention from points/rank — the correct precedent here is
+`ProgressRecord`/`JournalEntry`/`Message` (point-in-time facts needing
+a timestamp that shouldn't silently un-earn), not the compute-on-read
+style. `awardedById` is set only for the two teacher-awarded badges
+(`PROJECT_COMPLETE`, `MASTER_ENGINEER_NOMINATION`); null for the six
+auto-awarded ones. **Any teacher may award either manual badge to any
+student** — no ownership/class-scoping — matching the same precedent
+already established for journal entries and `Doubt` answering (no
+natural single "owning" teacher per student in this schema).
+
+**Exam-completion badges hook into `finishAttempt`'s single choke
+point** (`src/lib/exam.ts`) — critically, only in the fresh-computation
+branch, never the idempotent early-return branch hit every time a
+finished result is re-viewed. **Live-verified the trickiest correctness
+point directly**: took a real exam end-to-end via curl (drew questions,
+looked up correct `QuestionOption` rows directly in the DB, submitted
+all 8 correct answers, finished at 100%) → exactly one `PERFECT_SCORE`
+row created; **re-invoked finish on the same now-`SUBMITTED` attempt**
+(hitting the early-return branch) → still exactly one row, `earnedAt`
+byte-identical — confirming the hook placement is correct, not just
+theoretically reasoned about.
+
+**Login-trigger badges** (the 3 streak badges, `TEAM_PLAYER`) hook into
+`auth.ts`'s `authorize()`, same try/catch-never-blocks-login discipline
+as `markPresentIfUnset`. **A real gap was reasoned through during
+planning, not left implicit**: this app's JWT session strategy doesn't
+re-invoke `authorize()` on every page load, so a student who logs in
+once and stays logged in for days would never get streak/Team-Player
+(re-)checked again even as their attendance keeps growing via the lab
+heartbeat. Fixed by also hooking `student/dashboard/page.tsx` (the
+single most-visited student page) — deliberately **not** also hooking
+`student/progress/page.tsx`, since one well-chosen page-load check is
+enough and a second would just be redundant idempotent writes.
+Live-verified: `TEAM_PLAYER` correctly auto-awarded on a real seeded
+student's login (3 qualifying journal entries, avg ≥ 4) from
+already-existing data — not manufactured for the test — then confirmed
+idempotent across a second login and a dashboard page visit (same row,
+same `earnedAt` both times).
+
+**`nominateMasterEngineer` re-checks eligibility server-side**, never
+trusting the client's disabled-button state — live-verified via raw
+curl (bypassing the UI entirely) both ways: a real student below the
+24-month/400-point threshold → 409 with zero rows created; a
+fabricated-eligible test student (25 months tenure via a backdated
+`ClassEnrollment`, 430 points via a mix of fake `ExamRecord` rows —
+confirmed `ExamRecord.examId`/`latestAttemptId` have no DB-level FK, so
+no real `Exam`/`ExamAttempt` rows were needed — plus attendance and
+badge rows) → 200, nomination badge created, rank correctly became
+"Master Engineer"; calling nomination again → 200 idempotent no-op, row
+count unchanged.
+
+**UI**: a new "Rank & Badges" `Card` section (shared `RankLadderCard`/
+`BadgeShelf` components, the same shared-component role
+`MonthHeatmapGrid` plays across Phase 5's two surfaces) inserted right
+after `StudentSummaryStrip` on the teacher student-profile page and
+between the `hero-grid` and "Entry history" on `/student/progress` —
+confirmed via direct file reads this was the correct insertion point
+(not a 5th card crammed into `StudentSummaryStrip`'s weighted
+`.hero-grid`, which would have wrapped awkwardly). `BadgeAwardActions`
+(teacher-only) mirrors `JournalEntryCard.tsx`'s confirm-before-fire
+pattern exactly, reusing `ConfirmSheet` unmodified. A real duplicate was
+found and fixed during planning: the teacher profile page's inline
+`totalDaysPresent` filter was identical to what the new points logic
+needed — extracted into `countDaysPresent()` (`src/lib/attendance.ts`),
+now called from both places instead of being computed twice.
+
+**No dormant CSS existed for this** (unlike most prior phases) — new
+`.rank-*`/`.badge-tile*` classes were added to `dashboard.css`, all
+using the pre-existing `--gold*` token family (already a natural fit
+for achievement/rank styling) rather than inventing new tokens. One new
+icon, `medal` (for the two teacher-awarded badges); the four
+auto-awarded badge types deliberately reuse existing icons whose
+underlying CONCEPT already matches exactly (`trophy`→Perfect Score,
+`award`→Exam Ace, `flame`→streaks, `star`→Team Player, `shield`→generic
+rank-tier icon) rather than adding icons for concepts the app already
+visualizes elsewhere.
+
+Live-verified end-to-end via curl + direct DB checks + a `tsx`-run
+pure-function cross-check: points formula matched a hand-computed total
+against a real seeded student's actual exam/attendance/journal rows;
+all 9 `computeRank` boundary/extra-gate cases passed; exam-finish badge
+fired exactly once across a real 100%-scored attempt and a subsequent
+re-view; login-trigger idempotency across 2 logins + 1 dashboard visit;
+any-teacher badge-award confirmed with a temporary second teacher
+account with no relationship to the target student; nomination's
+server-side gate rejected an ineligible real student and accepted a
+fabricated-eligible one, both via raw curl bypassing the UI; role-guard
+401s in both directions on the new routes; regression-checked 10
+untouched pages (dashboard, exams, console, students list, module
+picker, homework ×2, doubts, classes, attendance) all rendering
+unchanged. All test students (including the fabricated-eligible one and
+its backdated class/enrollment), the temporary second teacher account,
+and a test-awarded `PROJECT_COMPLETE` badge placed on two real seeded
+students purely for the any-teacher check were deleted/reverted after
+verification — the one `TEAM_PLAYER` badge left on a real seeded
+student was deliberately **not** reverted, since it reflects that
+student's genuine pre-existing journal-entry data, not test pollution.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.
@@ -806,7 +1025,8 @@ were deleted afterward.
   `add_journal_entries`, `add_activity_segments`,
   `add_journal_entry_audit_trail`, `add_screen_view_sessions`,
   `add_classes`, `add_student_profiles`, `add_class_schedule`,
-  `add_messages`, `add_homework_assignments` — all additive, no renames.
+  `add_messages`, `add_homework_assignments`, `add_doubts`,
+  `add_student_badges` — all additive, no renames.
 - `var/student-photos/` (phase 2 enrollment photos) is gitignored and
   needs its own Docker volume in production, same as
   `var/screen-recordings/` — flat one-file-per-student, original format

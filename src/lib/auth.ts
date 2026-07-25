@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { db } from "./db";
 import { markPresentIfUnset } from "./attendance";
+import { checkAndAwardLoginBadges } from "./badges";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -41,6 +42,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           } catch (err) {
             console.error("attendance auto-mark failed on login", err);
             // deliberately swallowed — a marking bug must never block login
+          }
+          try {
+            await checkAndAwardLoginBadges(user.id, new Date());
+          } catch (err) {
+            console.error("badge award failed on login", err);
+            // deliberately swallowed — a badge-award bug must never block login
           }
         }
 

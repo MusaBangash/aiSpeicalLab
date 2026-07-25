@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getStudentDashboard } from "@/lib/dashboard";
+import { checkAndAwardLoginBadges } from "@/lib/badges";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/shell/Icon";
@@ -11,6 +12,13 @@ import { ProgressRing } from "@/components/dashboard/ProgressRing";
 export default async function StudentDashboardPage() {
   const session = await auth();
   if (!session || session.user.role !== "STUDENT") redirect("/login");
+
+  try {
+    await checkAndAwardLoginBadges(session.user.id);
+  } catch (err) {
+    console.error("badge award failed on dashboard load", err);
+    // deliberately swallowed — a badge-award bug must never block the dashboard
+  }
 
   const data = await getStudentDashboard(session.user.id);
 

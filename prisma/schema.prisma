@@ -55,22 +55,27 @@ model User {
   examRecords                 ExamRecord[]
   progress                    ProgressRecord[]
   attendance                  Attendance[]
-  journalEntries              JournalEntry[]      @relation("JournalEntryStudent")
-  journalEntriesAuthored      JournalEntry[]      @relation("JournalEntryTeacher")
+  journalEntries              JournalEntry[]        @relation("JournalEntryStudent")
+  journalEntriesAuthored      JournalEntry[]        @relation("JournalEntryTeacher")
   activitySegments            ActivitySegment[]
-  screenViewSessionsAsStudent ScreenViewSession[] @relation("ScreenViewStudent")
-  screenViewSessionsAsTeacher ScreenViewSession[] @relation("ScreenViewTeacher")
-  screenRecordingsAsStudent   ScreenRecording[]   @relation("ScreenRecordingStudent")
-  screenRecordingsAsTeacher   ScreenRecording[]   @relation("ScreenRecordingTeacher")
-  classesOwned                Class[]             @relation("ClassTeacher")
-  classEnrollments            ClassEnrollment[]   @relation("ClassEnrollmentStudent")
+  screenViewSessionsAsStudent ScreenViewSession[]   @relation("ScreenViewStudent")
+  screenViewSessionsAsTeacher ScreenViewSession[]   @relation("ScreenViewTeacher")
+  screenRecordingsAsStudent   ScreenRecording[]     @relation("ScreenRecordingStudent")
+  screenRecordingsAsTeacher   ScreenRecording[]     @relation("ScreenRecordingTeacher")
+  classesOwned                Class[]               @relation("ClassTeacher")
+  classEnrollments            ClassEnrollment[]     @relation("ClassEnrollmentStudent")
   studentProfile              StudentProfile?
-  messagesAuthored            Message[]           @relation("MessageTeacher")
-  messagesTargeted            Message[]           @relation("MessageTargetStudent")
+  messagesAuthored            Message[]             @relation("MessageTeacher")
+  messagesTargeted            Message[]             @relation("MessageTargetStudent")
   messageRecipients           MessageRecipient[]
-  exercisesAuthored           Exercise[]           @relation("ExerciseTeacher")
-  exercisesTargeted           Exercise[]           @relation("ExerciseTargetStudent")
+  exercisesAuthored           Exercise[]            @relation("ExerciseTeacher")
+  exercisesTargeted           Exercise[]            @relation("ExerciseTargetStudent")
   assignmentItemChecks        AssignmentItemCheck[]
+  doubtsAsked                 Doubt[]               @relation("DoubtStudent")
+  doubtsAnswered              Doubt[]               @relation("DoubtAnsweredBy")
+  doubtsResolved              Doubt[]               @relation("DoubtResolvedBy")
+  badgesEarned                StudentBadge[]        @relation("StudentBadgeStudent")
+  badgesAwarded               StudentBadge[]        @relation("StudentBadgeAwardedBy")
 }
 
 model PC {
@@ -149,9 +154,9 @@ model JournalEntry {
   // the original's own fields never change. See src/lib/metrics.ts for
   // how "active" (retractedAt null AND not superseded) is computed.
   retractedAt  DateTime?
-  supersedesId String?        @unique
-  supersedes   JournalEntry?  @relation("JournalEntrySupersede", fields: [supersedesId], references: [id])
-  supersededBy JournalEntry?  @relation("JournalEntrySupersede")
+  supersedesId String?       @unique
+  supersedes   JournalEntry? @relation("JournalEntrySupersede", fields: [supersedesId], references: [id])
+  supersededBy JournalEntry? @relation("JournalEntrySupersede")
 
   @@index([studentId, category])
 }
@@ -300,6 +305,7 @@ model CurriculumModule {
   exercises Exercise[]
   exams     Exam[]
   progress  ProgressRecord[]
+  doubts    Doubt[]
 }
 
 // Homework/assignments (roadmap phase 8). moduleId is nullable — null means
@@ -575,14 +581,14 @@ model ScreenViewSession {
 // ScreenViewSession. Frames attach only from that point forward; nothing
 // shown live before the click is ever recoverable.
 model ScreenRecording {
-  id        String                 @id @default(cuid())
-  sessionId String                 @unique
-  session   ScreenViewSession      @relation(fields: [sessionId], references: [id])
+  id        String            @id @default(cuid())
+  sessionId String            @unique
+  session   ScreenViewSession @relation(fields: [sessionId], references: [id])
   studentId String
-  student   User                   @relation("ScreenRecordingStudent", fields: [studentId], references: [id])
+  student   User              @relation("ScreenRecordingStudent", fields: [studentId], references: [id])
   teacherId String
-  teacher   User                   @relation("ScreenRecordingTeacher", fields: [teacherId], references: [id])
-  createdAt DateTime               @default(now())
+  teacher   User              @relation("ScreenRecordingTeacher", fields: [teacherId], references: [id])
+  createdAt DateTime          @default(now())
 
   frames ScreenRecordingFrame[]
 
@@ -658,4 +664,79 @@ model MessageRecipient {
 
   @@unique([messageId, studentId])
   @@index([studentId, readAt])
+}
+
+// Q&A/doubt-tracking (roadmap phase 9) — reverse direction of Message: a
+// student, stuck on something, asks a question tagged to a CurriculumModule.
+// No fan-out table (single asker, no audience) and no ownership scoping on
+// answer/resolve — unlike Message/Exercise, a Doubt is student-authored, so
+// there is no teacher-creator to scope mutation to; any teacher may answer
+// or resolve any doubt. Status (unanswered/answered/resolved) is derived
+// from which timestamps are set, never stored. answeredAt is first-wins
+// (set once on the first answer, never overwritten by a later edit) —
+// answerBody/answeredById stay freely overwritable so a teacher can correct
+// or take over an existing answer.
+model Doubt {
+  id String @id @default(cuid())
+
+  studentId String
+  student   User   @relation("DoubtStudent", fields: [studentId], references: [id])
+
+  moduleId String
+  module   CurriculumModule @relation(fields: [moduleId], references: [id])
+
+  body      String
+  createdAt DateTime @default(now())
+
+  answerBody   String?
+  answeredById String?
+  answeredBy   User?     @relation("DoubtAnsweredBy", fields: [answeredById], references: [id])
+  answeredAt   DateTime?
+
+  resolvedById String?
+  resolvedBy   User?     @relation("DoubtResolvedBy", fields: [resolvedById], references: [id])
+  resolvedAt   DateTime?
+
+  @@index([studentId])
+  @@index([moduleId])
+  @@index([answeredAt])
+}
+
+// ============================================================
+// RANK & BADGES — points/rank computed on read (see src/lib/rank.ts);
+// badges are the one stored, event-driven fact per student per type
+// (roadmap phase 10, final phase)
+// ============================================================
+
+enum BadgeType {
+  PERFECT_SCORE // 100% on any exam
+  EXAM_ACE // 5 exams passed
+  STREAK_7 // 7-day attendance streak reached
+  STREAK_30 // 30-day attendance streak reached
+  STREAK_90 // 90-day attendance streak reached
+  TEAM_PLAYER // sustained high Participation/Behaviour rating
+  PROJECT_COMPLETE // teacher-awarded, no auto condition
+  MASTER_ENGINEER_NOMINATION // teacher-awarded, gated server-side on Master
+  // Engineer's own tenure+points threshold; this badge's existence is what
+  // rank computation checks to unlock the top rank
+}
+
+// One row per (student, type), earned at most once ever — never re-checked
+// or revoked after award, same "materialize once" precedent as
+// ProgressRecord/JournalEntry/Message (point-in-time facts with their own
+// timestamp), deliberately NOT the compute-on-read style used for
+// lateness/streaks/rank itself. awardedById is set only for the two
+// teacher-manually-awarded types (PROJECT_COMPLETE,
+// MASTER_ENGINEER_NOMINATION); null for the six auto-awarded types.
+model StudentBadge {
+  id          String    @id @default(cuid())
+  studentId   String
+  student     User      @relation("StudentBadgeStudent", fields: [studentId], references: [id])
+  type        BadgeType
+  earnedAt    DateTime  @default(now())
+  awardedById String?
+  awardedBy   User?     @relation("StudentBadgeAwardedBy", fields: [awardedById], references: [id])
+
+  @@unique([studentId, type])
+  @@index([studentId])
 }

@@ -1,5 +1,5 @@
 /** Attendance rules — not part of the locked exam spec, so they live separately from exam.ts. */
-import type { Attendance } from "@prisma/client";
+import type { Attendance, AttendanceStatus } from "@prisma/client";
 import { db } from "./db";
 import { getClassRoster } from "./classes";
 
@@ -327,6 +327,12 @@ export function computeLongestStreak(records: Attendance[]): number {
     cursor.setDate(cursor.getDate() + 1);
   }
   return longest;
+}
+
+/** All-time count of PRESENT/LATE rows — same definition StudentSummaryStrip's
+ *  "Total days present" stat and the rank system's attendance points both use. */
+export function countDaysPresent(records: { status: AttendanceStatus }[]): number {
+  return records.filter((a) => a.status === "PRESENT" || a.status === "LATE").length;
 }
 
 /** Every {year, month} from `start`'s month through `end`'s month

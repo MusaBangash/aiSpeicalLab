@@ -6,7 +6,12 @@ import { getStudentMetrics, JOURNAL_CATEGORIES } from "@/lib/metrics";
 import { getStudentActivity, isIdle } from "@/lib/activity";
 import { getStudentJoinDate } from "@/lib/classes";
 import { getExamCounts } from "@/lib/dashboard";
-import { computeLongestStreak, getStudentMonthAttendanceCells, listMonthsDescending } from "@/lib/attendance";
+import { computeLongestStreak, countDaysPresent, getStudentMonthAttendanceCells, listMonthsDescending } from "@/lib/attendance";
+import { getStudentRankStatus } from "@/lib/rank";
+import { getBadgeShelf } from "@/lib/badges";
+import { RankLadderCard } from "@/components/rank/RankLadderCard";
+import { BadgeShelf } from "@/components/rank/BadgeShelf";
+import { BadgeAwardActions } from "@/components/rank/BadgeAwardActions";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/shell/Icon";
@@ -53,7 +58,7 @@ export default async function TeacherStudentDetailPage({
   const student = await db.user.findUnique({ where: { id: studentId } });
   if (!student || student.role !== "STUDENT") redirect("/teacher/students");
 
-  const [metrics, activity, recordings, profile, joinDate, allAttendance, examCounts] = await Promise.all([
+  const [metrics, activity, recordings, profile, joinDate, allAttendance, examCounts, rankStatus, badgeShelf] = await Promise.all([
     getStudentMetrics(studentId),
     getStudentActivity(studentId),
     getRecordingsForStudent(session.user.id, studentId),
@@ -61,10 +66,12 @@ export default async function TeacherStudentDetailPage({
     getStudentJoinDate(studentId),
     db.attendance.findMany({ where: { studentId } }), // all-time — reused for BOTH longest streak AND total-days-present
     getExamCounts(studentId),
+    getStudentRankStatus(studentId),
+    getBadgeShelf(studentId),
   ]);
 
   const longestStreak = computeLongestStreak(allAttendance);
-  const totalDaysPresent = allAttendance.filter((a) => a.status === "PRESENT" || a.status === "LATE").length;
+  const totalDaysPresent = countDaysPresent(allAttendance);
   const months = joinDate ? listMonthsDescending(joinDate, new Date()) : [];
   const monthCells = await Promise.all(months.map((m) => getStudentMonthAttendanceCells(studentId, m.year, m.month)));
 
@@ -153,6 +160,18 @@ export default async function TeacherStudentDetailPage({
         examsTaken={examCounts.examsTaken}
         examsPassed={examCounts.examsPassed}
       />
+
+      <Card className="feed-card" style={{ marginTop: 16, marginBottom: 16 }}>
+        <div className="feed-title">Rank &amp; Badges</div>
+        <RankLadderCard status={rankStatus} />
+        <BadgeShelf badges={badgeShelf} />
+        <BadgeAwardActions
+          studentId={studentId}
+          projectCompleteEarnedAt={badgeShelf.find((b) => b.type === "PROJECT_COMPLETE")?.earnedAt ?? null}
+          nominationEarnedAt={badgeShelf.find((b) => b.type === "MASTER_ENGINEER_NOMINATION")?.earnedAt ?? null}
+          nominationEligible={rankStatus.tenureMonths >= 24 && rankStatus.points.total >= 400}
+        />
+      </Card>
 
       {joinDate ? (
         <>
