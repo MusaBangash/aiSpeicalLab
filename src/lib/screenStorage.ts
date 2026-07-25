@@ -18,6 +18,12 @@ export function frameFilePath(recordingId: string, frameId: string): string {
   return path.join(STORAGE_ROOT, recordingId, `${frameId}.jpg`);
 }
 
+/** The whole recording's directory — used by the retention sweep to delete
+ *  every frame file for a recording in one operation. */
+export function recordingDirPath(recordingId: string): string {
+  return path.join(STORAGE_ROOT, recordingId);
+}
+
 export async function writeFrameToDisk(recordingId: string, frameId: string, bytes: Buffer): Promise<void> {
   const dir = path.join(STORAGE_ROOT, recordingId);
   await mkdir(dir, { recursive: true });

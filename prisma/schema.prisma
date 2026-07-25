@@ -49,6 +49,15 @@ model User {
   streakAlerts  Boolean @default(true)
   showOnWall    Boolean @default(true)
 
+  // Set when a teacher resets a forgotten student password (self-service
+  // change-when-known already exists via /api/settings/password — this is
+  // only the forgot-password path). Audit-only, same who/when convention as
+  // StudentBadge.awardedById.
+  passwordResetAt     DateTime?
+  passwordResetById   String?
+  passwordResetBy     User?     @relation("PasswordResetBy", fields: [passwordResetById], references: [id])
+  passwordResetsGiven User[]    @relation("PasswordResetBy")
+
   sessions                    Session[]
   submissions                 Submission[]
   attempts                    ExamAttempt[]
@@ -306,6 +315,7 @@ model CurriculumModule {
   exams     Exam[]
   progress  ProgressRecord[]
   doubts    Doubt[]
+  questions Question[]
 }
 
 // Homework/assignments (roadmap phase 8). moduleId is nullable — null means
@@ -471,6 +481,15 @@ model Question {
   active Boolean @default(true) // retire bad questions without deleting
   order  Int     @default(0) // position in the bank editor; reorder via up/down, not drag-and-drop
 
+  // Optional per-question topic tag, overriding the exam's own whole-exam
+  // moduleId for topic-breakdown purposes (see getStudentTopicBreakdown in
+  // src/lib/exam.ts: effective module = question.moduleId ?? exam.moduleId).
+  // Null for the overwhelming majority of questions — every question already
+  // inherits its exam's module by default, so no backfill is needed; this is
+  // only for exams that deliberately mix multiple topics.
+  moduleId String?
+  module   CurriculumModule? @relation(fields: [moduleId], references: [id])
+
   options QuestionOption[]
   answers AttemptAnswer[]
 }
@@ -597,10 +616,11 @@ model ScreenRecording {
 
 // Metadata only — the JPEG bytes live on disk under
 // SCREEN_RECORDINGS_DIR/<recordingId>/<frameId>.jpg (src/lib/screenStorage.ts),
-// never in Postgres, to avoid DB/backup bloat for indefinite-retention
-// image data. Retention is indefinite by confirmed decision — a tradeoff
-// worth revisiting before a real multi-school deployment, not something
-// this schema enforces or auto-expires.
+// never in Postgres, to avoid DB/backup bloat. Retention is 90 days by
+// confirmed decision (RECORDING_RETENTION_DAYS, src/lib/screenView.ts's
+// sweepExpiredRecordings, wired into the /api/cron/sweep sweep) — no
+// column here enforces it, the sweep is what deletes both the on-disk
+// directory and these rows once a recording's createdAt is past the cutoff.
 model ScreenRecordingFrame {
   id          String          @id @default(cuid())
   recordingId String

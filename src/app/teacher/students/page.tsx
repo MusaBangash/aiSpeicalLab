@@ -15,7 +15,10 @@ export default async function TeacherStudentsPage() {
   return (
     <div className="page-anim">
       <PageHeader title="Students" />
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 16 }}>
+        <Link href="/teacher/students/bulk-import" className="btn ghost">
+          Bulk import (CSV)
+        </Link>
         <Link href="/teacher/students/new" className="btn">
           Add student
         </Link>

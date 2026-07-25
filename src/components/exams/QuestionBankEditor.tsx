@@ -4,12 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
+import { ModuleField, resolveModuleId } from "./ModuleField";
 import { PasteQuestionsForm } from "./PasteQuestionsForm";
 import { PdfUploadForm } from "./PdfUploadForm";
 import { useUnsavedChangesWarning } from "@/lib/useUnsavedChangesWarning";
 
 export type Option = { id: string; text: string; isCorrect: boolean; order: number };
-export type Question = { id: string; text: string; active: boolean; order: number; options: Option[] };
+export type Question = { id: string; text: string; active: boolean; order: number; moduleId: string | null; options: Option[] };
 export type QuestionStats = { total: number; correct: number };
 
 const EMPTY_OPTIONS = ["", "", "", ""];
@@ -18,6 +19,8 @@ function QuestionForm({
   initialText = "",
   initialOptions = EMPTY_OPTIONS,
   initialCorrectIndex = 0,
+  initialModuleId = null,
+  modules,
   submitLabel,
   onSubmit,
   onCancel,
@@ -25,25 +28,39 @@ function QuestionForm({
   initialText?: string;
   initialOptions?: string[];
   initialCorrectIndex?: number;
+  initialModuleId?: string | null;
+  modules: { id: string; title: string }[];
   submitLabel: string;
-  onSubmit: (text: string, options: string[], correctIndex: number) => Promise<void>;
+  onSubmit: (text: string, options: string[], correctIndex: number, moduleId: string | null) => Promise<void>;
   onCancel?: () => void;
 }) {
   const [text, setText] = useState(initialText);
   const [options, setOptions] = useState(initialOptions);
   const [correctIndex, setCorrectIndex] = useState(initialCorrectIndex);
+  const [moduleName, setModuleName] = useState(modules.find((m) => m.id === initialModuleId)?.title ?? "");
+  const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
   useUnsavedChangesWarning(
     text !== initialText ||
       correctIndex !== initialCorrectIndex ||
-      options.some((o, i) => o !== initialOptions[i])
+      options.some((o, i) => o !== initialOptions[i]) ||
+      moduleName !== (modules.find((m) => m.id === initialModuleId)?.title ?? "")
   );
 
   async function handleSubmit() {
     if (!text.trim() || options.some((o) => !o.trim())) return;
+    setError(null);
+    let moduleId: string | null = null;
+    if (moduleName.trim()) {
+      moduleId = resolveModuleId(modules, moduleName);
+      if (!moduleId) {
+        setError(`No module named "${moduleName}" — pick one from the suggestions, or leave it blank.`);
+        return;
+      }
+    }
     setPending(true);
-    await onSubmit(text, options, correctIndex);
+    await onSubmit(text, options, correctIndex, moduleId);
     setPending(false);
   }
 
@@ -70,6 +87,8 @@ function QuestionForm({
           />
         </div>
       ))}
+      <ModuleField modules={modules} moduleName={moduleName} onChange={setModuleName} required={false} />
+      {error ? <div className="field-error">{error}</div> : null}
       <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
         <Button type="button" disabled={pending} onClick={handleSubmit}>
           {pending ? "Saving…" : submitLabel}
@@ -90,12 +109,16 @@ export function QuestionBankEditor({
   questionsShown,
   initialQuestions,
   stats,
+  modules,
+  examModuleTitle,
 }: {
   examId: string;
   examStatus: "DRAFT" | "PUBLISHED" | "ARCHIVED";
   questionsShown: number;
   initialQuestions: Question[];
   stats: Record<string, QuestionStats>;
+  modules: { id: string; title: string }[];
+  examModuleTitle: string;
 }) {
   const router = useRouter();
   const [questions, setQuestions] = useState(initialQuestions);
@@ -180,11 +203,11 @@ export function QuestionBankEditor({
     closeAllPanels();
   }
 
-  async function addQuestion(text: string, options: string[], correctIndex: number) {
+  async function addQuestion(text: string, options: string[], correctIndex: number, moduleId: string | null) {
     const res = await fetch(`/api/exams/${examId}/questions`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, options, correctIndex }),
+      body: JSON.stringify({ text, options, correctIndex, moduleId }),
     });
     if (res.ok) {
       const q = await res.json();
@@ -193,11 +216,11 @@ export function QuestionBankEditor({
     }
   }
 
-  async function editQuestion(id: string, text: string, options: string[], correctIndex: number) {
+  async function editQuestion(id: string, text: string, options: string[], correctIndex: number, moduleId: string | null) {
     const res = await fetch(`/api/exams/${examId}/questions/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, options, correctIndex }),
+      body: JSON.stringify({ text, options, correctIndex, moduleId }),
     });
     if (res.ok) {
       const q = await res.json();
@@ -300,8 +323,10 @@ export function QuestionBankEditor({
             initialText={q.text}
             initialOptions={q.options.map((o) => o.text)}
             initialCorrectIndex={q.options.findIndex((o) => o.isCorrect)}
+            initialModuleId={q.moduleId}
+            modules={modules}
             submitLabel="Save changes"
-            onSubmit={(text, options, correctIndex) => editQuestion(q.id, text, options, correctIndex)}
+            onSubmit={(text, options, correctIndex, moduleId) => editQuestion(q.id, text, options, correctIndex, moduleId)}
             onCancel={() => setEditingId(null)}
           />
         ) : (
@@ -325,6 +350,9 @@ export function QuestionBankEditor({
                       {Math.round((100 * stats[q.id].correct) / stats[q.id].total)}%)
                     </div>
                   ) : null}
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+                    Topic: {q.moduleId ? modules.find((m) => m.id === q.moduleId)?.title ?? "Unknown module" : `${examModuleTitle} (exam default)`}
+                  </div>
                   <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 6 }}>
                     {q.options.map((o) => (
                       <div key={o.id} style={{ color: o.isCorrect ? "var(--leaf)" : undefined }}>
@@ -369,7 +397,7 @@ export function QuestionBankEditor({
       )}
 
       {adding ? (
-        <QuestionForm submitLabel="Add question" onSubmit={addQuestion} onCancel={closeAllPanels} />
+        <QuestionForm modules={modules} submitLabel="Add question" onSubmit={addQuestion} onCancel={closeAllPanels} />
       ) : pasting ? (
         <PasteQuestionsForm examId={examId} onAdded={onBulkAdded} onCancel={closeAllPanels} />
       ) : uploadingPdf ? (

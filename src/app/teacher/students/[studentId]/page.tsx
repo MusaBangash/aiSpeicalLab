@@ -23,6 +23,8 @@ import { ScreenViewPanel } from "@/components/screenview/ScreenViewPanel";
 import { MonthHeatmapGrid } from "@/components/attendance/MonthHeatmapGrid";
 import { ExamScoreTrend } from "@/components/students/ExamScoreTrend";
 import { StudentSummaryStrip } from "@/components/students/StudentSummaryStrip";
+import { ResetPasswordAction } from "@/components/students/ResetPasswordAction";
+import { TopicBreakdown } from "@/components/students/TopicBreakdown";
 import Link from "next/link";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -119,6 +121,10 @@ export default async function TeacherStudentDetailPage({
         </Card>
       ) : null}
 
+      <div style={{ marginBottom: 16 }}>
+        <ResetPasswordAction studentId={studentId} studentName={student.name} />
+      </div>
+
       <div className="hero-grid">
         <Card className="mini-card">
           <div className="mini-top">
@@ -211,6 +217,7 @@ export default async function TeacherStudentDetailPage({
       )}
 
       <ExamScoreTrend studentId={studentId} />
+      <TopicBreakdown studentId={studentId} />
 
       <Card className="feed-card" style={{ marginTop: 16, marginBottom: 16 }}>
         <div className="feed-title">Journal timeline</div>

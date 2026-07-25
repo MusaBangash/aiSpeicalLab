@@ -8,6 +8,7 @@ const bodySchema = z.object({
   options: z.array(z.string().min(1)).length(4).optional(),
   correctIndex: z.number().int().min(0).max(3).optional(),
   active: z.boolean().optional(),
+  moduleId: z.string().min(1).nullable().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ questionId: string }> }) {
@@ -21,15 +22,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ questi
   if (!parsed.success) {
     return Response.json({ error: "Invalid request body" }, { status: 400 });
   }
-  const { text, options, correctIndex, active } = parsed.data;
+  const { text, options, correctIndex, active, moduleId } = parsed.data;
 
   if (options && correctIndex === undefined) {
     return Response.json({ error: "correctIndex is required when replacing options" }, { status: 400 });
   }
 
   const question = await db.$transaction(async (tx) => {
-    if (text !== undefined || active !== undefined) {
-      await tx.question.update({ where: { id: questionId }, data: { text, active } });
+    if (text !== undefined || active !== undefined || moduleId !== undefined) {
+      await tx.question.update({ where: { id: questionId }, data: { text, active, moduleId } });
     }
     if (options) {
       await tx.questionOption.deleteMany({ where: { questionId } });

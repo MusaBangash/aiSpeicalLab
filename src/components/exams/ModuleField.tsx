@@ -11,22 +11,24 @@ export function ModuleField({
   modules,
   moduleName,
   onChange,
+  required = true,
 }: {
   modules: { id: string; title: string }[];
   moduleName: string;
   onChange: (name: string) => void;
+  required?: boolean;
 }) {
   return (
     <div className="field">
-      <label htmlFor="module">Module</label>
+      <label htmlFor="module">Module{required ? "" : " (optional)"}</label>
       <input
         id="module"
         list="module-options"
         value={moduleName}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Start typing a module name…"
+        placeholder={required ? "Start typing a module name…" : "Start typing a module name, or leave blank…"}
         autoComplete="off"
-        required
+        required={required}
       />
       <datalist id="module-options">
         {modules.map((m) => (

@@ -1,7 +1,16 @@
 /** Hand-rolled CSV — no dependency needed at this scale (a few dozen rows). */
-function csvField(value: string | number): string {
+export function csvField(value: string | number): string {
   const s = String(value);
   return /[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+/** Generic CSV builder — rowsToCsv below is hardcoded to the exam-results
+ *  shape, so this is the reusable sibling for anything else (e.g. bulk
+ *  student-import credentials/templates in csvImport.ts). */
+export function toCsv(headers: string[], rows: (string | number)[][]): string {
+  const lines = [headers.map(csvField).join(",")];
+  for (const row of rows) lines.push(row.map(csvField).join(","));
+  return lines.join("\n");
 }
 
 export type CsvRow = {

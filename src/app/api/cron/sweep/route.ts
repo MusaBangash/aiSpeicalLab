@@ -7,7 +7,7 @@
 import { sweepExpired } from "@/lib/exam";
 import { closeStaleSessions } from "@/lib/attendance";
 import { closeStaleActivitySegments } from "@/lib/activity";
-import { closeStaleScreenViewSessions } from "@/lib/screenView";
+import { closeStaleScreenViewSessions, sweepExpiredRecordings } from "@/lib/screenView";
 
 export async function GET(req: Request) {
   const key = req.headers.get("x-agent-key");
@@ -15,11 +15,12 @@ export async function GET(req: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [attemptsSwept, sessionsClosed, activitySegmentsClosed, screenViewSessionsClosed] = await Promise.all([
+  const [attemptsSwept, sessionsClosed, activitySegmentsClosed, screenViewSessionsClosed, recordingsDeleted] = await Promise.all([
     sweepExpired(),
     closeStaleSessions(),
     closeStaleActivitySegments(),
     closeStaleScreenViewSessions(),
+    sweepExpiredRecordings(),
   ]);
-  return Response.json({ attemptsSwept, sessionsClosed, activitySegmentsClosed, screenViewSessionsClosed });
+  return Response.json({ attemptsSwept, sessionsClosed, activitySegmentsClosed, screenViewSessionsClosed, recordingsDeleted });
 }

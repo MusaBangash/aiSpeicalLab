@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { getRecordingWithFrames } from "@/lib/screenView";
+import { getRecordingWithFrames, RECORDING_RETENTION_DAYS } from "@/lib/screenView";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { RecordingSlideshow } from "@/components/screenview/RecordingSlideshow";
 
@@ -25,7 +25,7 @@ export default async function RecordingDetailPage({
       <PageHeader title={`Recording — ${student?.name ?? "Unknown student"}`} />
       <div style={{ marginBottom: 16, color: "var(--muted)", fontSize: 13 }}>
         Saved {recording.createdAt.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })} ·{" "}
-        {recording.frames.length} frames
+        {recording.frames.length} frames · auto-deleted after {RECORDING_RETENTION_DAYS} days
       </div>
       <RecordingSlideshow
         recordingId={recording.id}

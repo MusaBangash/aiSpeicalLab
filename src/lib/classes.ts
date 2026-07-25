@@ -22,6 +22,16 @@ export async function getClassesForTeacher(teacherId: string): Promise<ClassSumm
   return classes.map((c) => ({ id: c.id, name: c.name, createdAt: c.createdAt, activeStudentCount: c._count.enrollments }));
 }
 
+/** Case-insensitive exact-match resolve of a typed class name to its id —
+ *  same shape as ModuleField.tsx's resolveModuleId, swapping title for name.
+ *  Used by the bulk CSV import review to resolve an optional className
+ *  column without rejecting the whole row on a typo (caller treats null
+ *  as "leave unassigned", not an error). */
+export function resolveClassId(classes: { id: string; name: string }[], name: string): string | null {
+  const match = classes.find((c) => c.name.toLowerCase() === name.trim().toLowerCase());
+  return match ? match.id : null;
+}
+
 export type RosterEntry = { enrollmentId: string; studentId: string; name: string; email: string; joinedAt: Date };
 
 export async function getClassRoster(classId: string): Promise<RosterEntry[]> {

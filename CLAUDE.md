@@ -993,6 +993,225 @@ verification — the one `TEAM_PLAYER` badge left on a real seeded
 student was deliberately **not** reverted, since it reflects that
 student's genuine pre-existing journal-entry data, not test pollution.
 
+## Post-roadmap work — teacher password reset + per-question topic tagging (2026-07-25)
+
+Two gaps identified during a full-system review, fixed as one unit of
+work outside the (now-complete) 10-phase roadmap.
+
+**Teacher-initiated password reset**: a student's password was
+previously only ever set once, at enrollment — no way to recover it if
+forgotten, short of wrongly re-enrolling a duplicate account (this app
+has no email/SMS infra — offline-LAN constraint — so any fix had to be
+entirely in-app). Confirmed during planning that self-service
+change-password already existed (`PATCH /api/settings/password`,
+requires the current password) — the gap was exclusively "forgot it
+entirely." New `resetStudentPassword` (`src/lib/students.ts`) reuses
+`generatePassword()`/`bcrypt.hash(_, 10)` exactly as `createStudent`
+does, returning the new plaintext password once. `User` gained a
+lightweight audit trail (`passwordResetAt`/`passwordResetById`, a
+self-relation on `User` shaped like `JournalEntry`'s
+`supersedesId`/`supersedes` pair) — matches this app's established
+who/when tracking for sensitive teacher actions. **Any teacher may
+reset any student's password** (no ownership scoping), same precedent
+as journal entries/Doubt answering/badge awards — live-verified with a
+second, unrelated teacher account. `ResetPasswordAction.tsx`
+(`src/components/students/`) bridges `BadgeAwardActions`' confirm-flow
+pattern with `EnrollStudentForm`'s one-time-reveal pattern, inserted on
+`/teacher/students/[studentId]` as its own always-rendered section
+(deliberately **not** nested inside the profile-info card, which is
+conditional on a `StudentProfile` row existing — some seeded students
+have none and must still be resettable; confirmed live on both). The
+confirm dialog explicitly surfaces the known JWT-session limitation
+("any device already logged in stays logged in") — an honest,
+pre-existing constraint (no server-side session revocation list; the
+self-service change-password flow has the identical limitation
+already), not a new gap.
+
+**Per-question topic tagging + strength/weakness map**: exam questions
+previously weren't tagged by curriculum topic at all — only whole
+exams were (`Exam.moduleId`), so performance was only ever visible in
+aggregate. `Question` gained an optional `moduleId` (nullable,
+`CurriculumModule?` relation) — **zero backfill needed**: a question's
+effective topic is `question.moduleId ?? question.exam.moduleId`, so
+every pre-existing question already inherits its exam's module by
+default; teachers only need to hand-tag questions in exams that
+deliberately mix multiple topics. `ModuleField.tsx` (reused from exam
+creation and Phase 9's Doubts) gained an optional `required?: boolean`
+prop (default `true`, every existing caller unaffected) so it could be
+reused for optional per-question tagging in `QuestionForm`
+(`QuestionBankEditor.tsx`) — unresolvable typed module names now show
+an inline `.field-error`, matching this app's established validation
+convention, rather than silently blocking the submit button.
+**Bulk-paste and PDF-import are completely untouched** — no parser
+changes; both already create questions with `moduleId` implicitly
+`null` via Prisma's default-omit behavior, confirmed live.
+
+**One design question resolved with the user via `AskUserQuestion`
+before planning**: the breakdown aggregates across **all of a
+student's exam attempts ever** (every retry), not just the
+latest/official attempt per exam — a deliberate, confirmed departure
+from the `ExamRecord`-latest-attempt convention `getAvgExamScorePercent`/
+`getExamCounts` use elsewhere. This is a historical
+struggle-frequency view ("which topics has this student struggled with
+over time"), not a current-standing view. New
+`getStudentTopicBreakdown` (`src/lib/exam.ts`, next to
+`getAttemptScoreBreakdown`, reusing its existing `questionIdsOf`
+helper) — **live-verified the two trickiest correctness points in a
+single fabricated-data test**: two attempts on the same exam by one
+student, wrong-then-right on the same explicitly-tagged question,
+correctly produced `1/2 (50%)` under the *tagged* module (not the
+exam's own default module) — proving both the all-attempts aggregation
+and the tag-override-beats-exam-default fallback simultaneously.
+`TopicBreakdown.tsx` (`src/components/students/`) reuses the `.bar`/
+`.bar-fill` classes Phase 10's rank progress bar introduced — no new
+CSS, no charting library (matches `ExamScoreTrend.tsx`'s existing
+hand-rolled-SVG precedent, which this component sits directly beside
+on both profile pages). **Confirmed via direct read, not assumed**:
+`ExamScoreTrend` didn't previously appear on `/student/progress` at
+all (a much thinner page than the teacher one) — added alongside
+`TopicBreakdown` there too, since the component has no internal
+ownership check and giving students the same exam-trend visibility
+teachers already had was low-risk and clearly in scope for "alongside."
+
+Live-verified end-to-end via curl + direct DB checks + a `tsx`-run
+pure-function check: password reset — old password fails/new succeeds
+after reset, audit fields populate correctly, any-teacher confirmed,
+role-guard 401s in both directions, UI renders for students with and
+without a `StudentProfile`; topic tagging — pre-existing untouched
+questions render with the exam-default fallback caption, explicit
+per-question tagging overrides it, leaving the tag field blank
+produces `moduleId: null` (not an error), a full real exam attempt
+mixing tagged and untagged questions scored 100% byte-identical to
+pre-change behavior, bulk-paste unaffected. All test
+students/questions/teacher accounts created for verification were
+deleted, and the one real pre-existing question tagged during testing
+was reverted back to `null` afterward.
+
+## Post-roadmap work — automated tests + screen-recording retention + bulk CSV import (2026-07-25)
+
+Three more gaps closed as one unit of work, outside the (now-complete)
+10-phase roadmap. Confirmed staying English-only — Urdu translation
+work is explicitly out of scope.
+
+**Automated test suite (previously zero tests anywhere)**: **Vitest**
+chosen over Jest specifically because `tsconfig.json` already commits to
+`moduleResolution: "bundler"`/`module: "esnext"`/`isolatedModules: true`
+— Vite's native resolution model, not Jest's CJS-first transform. Path
+alias (`@/*`) is read automatically via `vite-tsconfig-paths`, so it
+can never drift from `tsconfig.json`. **Co-located `*.test.ts` files**
+(e.g. `src/lib/attendance.test.ts`), not a parallel `__tests__`/`tests/`
+tree — this codebase has zero precedent for mirrored test directories,
+everything lives beside what it tests. 12 unit-test files cover every
+pure, DB-free function across the codebase (`computeStreak`,
+`computeRank`, `parseQuestionTemplate`, `resolveModuleId`, `isLate`,
+`isIdle`, `generatePassword`, `initials`, CSV helpers, i18n, etc.) — 60
+tests. `tests/integration/` (separate directory — different execution
+profile, needs a live DB) covers the 5 trickiest stateful correctness
+properties that were previously only manually curl-verified:
+`markPresentIfUnset` idempotency, `resetStudentPassword`,
+`getStudentRankStatus` (cross-checked against the pure `computeRank`),
+`getStudentTopicBreakdown` (multi-attempt aggregation + tag-override),
+and — the single most important test in the suite —
+**`finishAttempt`'s idempotent early-return path**: takes a real
+attempt to 100%, calls `finishAttempt` twice, and asserts the badge
+count and `ExamRecord` row count don't change on the second call. **The
+regression-detection was itself verified, not just assumed**: the
+early-return branch was temporarily disabled, the idempotency test was
+confirmed to fail, then the fix was restored and the suite re-confirmed
+green.
+
+A separate **`stlab_test` database** (same Postgres container as dev,
+different DB name — no new Docker infra) is migrated via
+`scripts/migrate-test-db.ts` (`prisma migrate deploy` against
+`TEST_DATABASE_URL` from a gitignored `.env.test`). `tests/setup.ts`
+redirects `DATABASE_URL` to the test DB **before** any test file's own
+`import { db } from "@/lib/db"` resolves, since that singleton
+constructs `PrismaClient` at module-load time — this requires zero
+changes to any production `src/lib/*.ts` file. Every integration test
+creates its own fixtures (via `tests/integration/helpers.ts`'s
+`createTestLab`/`createTestTeacher`/`createTestStudent`/`createTestExam`)
+and cleans up exactly what it created in FK-safe order in an
+`afterEach` — confirmed live: `npm test` run twice back-to-back leaves
+both the test DB and the real dev DB completely clean, zero leakage
+either direction. One real config gap hit and fixed: Vitest 4's default
+transform is `oxc`, not `esbuild` — `vitest.config.ts` needed
+`oxc: { jsx: { runtime: "automatic" } }` (not the `esbuild.jsx` option)
+to let `ModuleField.test.ts` import from a `.tsx` file despite
+`tsconfig.json`'s `"jsx": "preserve"`. One dead branch in
+`questionParser.ts` was discovered while writing tests (a bare `"Q:"`
+line with no trailing content never starts a question block at all,
+since `.trim()` strips the whitespace the regex requires before it can
+match) — not fixed, since it's out of scope for this work, but the test
+was written to assert the real behavior instead of the originally
+assumed one.
+
+**Screen recording retention (90 days, confirmed via `AskUserQuestion`
+before planning)** — replaces the indefinite-retention decision from
+Phase 4. `sweepExpiredRecordings` (`src/lib/screenView.ts`, alongside
+`closeStaleScreenViewSessions`) deletes the on-disk frame directory
+**before** the DB rows — confirmed necessary, not just cautious: a
+crash between the two leaves an orphaned DB row whose `createdAt` is
+still past the cutoff, so the next sweep run picks it right back up
+(`rm(..., { force: true })` makes the already-gone directory a safe
+no-op); the reverse order would permanently leak files with nothing
+left to ever find them. **`ScreenRecordingFrame`'s FK is confirmed
+`ON DELETE RESTRICT`** (checked directly against the migration SQL, not
+assumed) — frames are deleted explicitly before the recording row,
+never relying on cascade. Wired into the existing `/api/cron/sweep`
+`Promise.all` as a new `recordingsDeleted` count. One-line UI addition
+on the recording detail page only (`· auto-deleted after {N} days`,
+threaded from the exported `RECORDING_RETENTION_DAYS` constant so copy
+can't drift from the env var) — deliberately not added to the busier
+student-profile recordings list. The schema comment that used to say
+"retention is indefinite by confirmed decision" was corrected, since it
+was about to become actively false. Live-verified: a 100-day-old
+recording (real on-disk JPEG + DB rows) was fully deleted by one sweep
+call while a 10-day-old one survived untouched; a second sweep call
+was a no-op (`recordingsDeleted: 0`); a simulated crash (DB row present,
+disk directory already gone) was swept without error on the next call.
+
+**Bulk CSV student import** — mirrors the existing bulk-paste-questions
+flow exactly (parse client-side → review table with per-row
+removal/warnings → one commit POST), via a new hand-rolled,
+quoted-field-aware CSV parser (`src/lib/csvImport.ts`'s `parseCsv`,
+RFC4180 semantics — a comma or newline inside a quoted field is data,
+not a delimiter, and `""` is an escaped literal quote) since student
+addresses routinely contain literal commas and a naive `.split(",")`
+would corrupt them. Header columns matched case-insensitively and
+order-independently (teachers reorder columns in Excel/Sheets).
+`POST /api/students/bulk` (`src/app/api/students/bulk/route.ts`) is
+**not one transaction** — loops calling the existing `createStudent`
+once per row (each row already has its own internal transaction), so
+one bad row (a duplicate email only detectable at commit time) never
+rolls back its neighbors; returns a per-row `{ok, ...}` result array.
+An unresolvable `className` (typo) is a soft warning, not a row
+rejection — the student still imports, just unassigned to a class.
+`resolveClassId` (`src/lib/classes.ts`) is the direct clone of
+`ModuleField.tsx`'s `resolveModuleId`, same case-insensitive
+exact-match shape. `rowsToCsv` (`src/lib/csvExport.ts`) turned out to
+be hardcoded to the exam-results row shape, not literally reusable as
+originally assumed — added a generic sibling `toCsv` (plus exporting
+the previously-private `csvField`) instead of duplicating the escaping
+logic in a new file; `downloadCsv` was already generic and is reused
+unmodified for both the post-commit credentials CSV and the
+"Download CSV template" button. Live-verified end-to-end: a batch of 2
+valid rows (one with a comma-containing address, one with a class
+assignment) plus 1 row colliding with a real seeded student's email —
+confirmed exactly 2 `User`/`StudentProfile` rows created, the
+comma-containing address stored intact, the class enrollment correctly
+assigned, the colliding row correctly 409'd with `createStudent`'s
+exact error message and no duplicate created; logged in as one
+newly-created student with its returned password to confirm the bcrypt
+hash round-trips through the bulk path exactly as the single-student
+path already does; role-guard 401 confirmed on the bulk route with no
+session.
+
+Live-verified end-to-end via `npm test` (82 tests, 18 files, unit +
+integration together) + curl + direct DB/disk checks for all three
+pieces. All test students/teachers/labs/PCs/recordings/sessions created
+for verification were deleted afterward; the one pre-existing real
+screen recording in the dev DB was left untouched.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.
@@ -1006,6 +1225,14 @@ student's genuine pre-existing journal-entry data, not test pollution.
   `firstname.lastname@student.stlab.local` / `change-me-123` (e.g.
   `ahmad.ali@student.stlab.local`) — see `prisma/seed.ts` for the full
   name list.
+- **Tests**: `npm test` runs the full suite (unit + integration).
+  `npm run test:unit` / `npm run test:integration` run just one half.
+  Integration tests need a one-time-per-machine `stlab_test` database on
+  the same Postgres container (`docker exec -it stlab-db psql -U stlab
+  -c "CREATE DATABASE stlab_test;"`), a `TEST_DATABASE_URL` in a
+  gitignored `.env.test` (see `.env.example`), and `npm run
+  test:db:migrate` to apply migrations to it — same container as
+  `DATABASE_URL`, never the dev database itself.
 
 ## Conventions to keep following
 
@@ -1026,7 +1253,8 @@ student's genuine pre-existing journal-entry data, not test pollution.
   `add_journal_entry_audit_trail`, `add_screen_view_sessions`,
   `add_classes`, `add_student_profiles`, `add_class_schedule`,
   `add_messages`, `add_homework_assignments`, `add_doubts`,
-  `add_student_badges` — all additive, no renames.
+  `add_student_badges`, `add_password_reset_and_question_topics` — all
+  additive, no renames.
 - `var/student-photos/` (phase 2 enrollment photos) is gitignored and
   needs its own Docker volume in production, same as
   `var/screen-recordings/` — flat one-file-per-student, original format

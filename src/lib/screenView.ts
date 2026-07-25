@@ -4,7 +4,9 @@
  * makes casual viewing genuinely ephemeral; only an explicit "Save this
  * session" persists anything (see screenStorage.ts).
  */
+import { rm } from "node:fs/promises";
 import { db } from "./db";
+import { recordingDirPath } from "./screenStorage";
 
 type LiveFrame = { bytes: Buffer; capturedAt: Date };
 
@@ -82,4 +84,31 @@ export async function getRecordingWithFrames(teacherId: string, recordingId: str
   });
   if (!recording || recording.teacherId !== teacherId) return null;
   return { id: recording.id, studentId: recording.studentId, createdAt: recording.createdAt, frames: recording.frames };
+}
+
+export const RECORDING_RETENTION_DAYS = Number(process.env.RECORDING_RETENTION_DAYS ?? 90);
+
+/**
+ * Cron sweep: permanently deletes ScreenRecordings (and their on-disk frame
+ * directories) older than RECORDING_RETENTION_DAYS. Disk delete happens
+ * FIRST, then DB rows — the failure mode that must never happen is "DB row
+ * gone, files still on disk" (a permanent leak, since nothing would ever
+ * point at those files again); the reverse ("files gone, DB row remains")
+ * is self-healing, since the row's createdAt is still past the cutoff and
+ * the next sweep picks it right back up (rm's force:true makes the
+ * already-gone directory a safe no-op). ScreenRecordingFrame's FK is
+ * ON DELETE RESTRICT (confirmed in migration SQL), so frames must be
+ * deleted explicitly before the recording row — cascade cannot be assumed.
+ */
+export async function sweepExpiredRecordings(retentionDays = RECORDING_RETENTION_DAYS): Promise<number> {
+  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+  const expired = await db.screenRecording.findMany({ where: { createdAt: { lt: cutoff } }, select: { id: true } });
+  if (expired.length === 0) return 0;
+
+  for (const { id } of expired) {
+    await rm(recordingDirPath(id), { recursive: true, force: true });
+    await db.screenRecordingFrame.deleteMany({ where: { recordingId: id } });
+    await db.screenRecording.delete({ where: { id } });
+  }
+  return expired.length;
 }

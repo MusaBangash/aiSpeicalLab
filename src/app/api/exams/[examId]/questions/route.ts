@@ -7,6 +7,7 @@ const bodySchema = z.object({
   text: z.string().min(1),
   options: z.array(z.string().min(1)).length(4),
   correctIndex: z.number().int().min(0).max(3),
+  moduleId: z.string().min(1).nullable().optional(),
 });
 
 export async function POST(req: Request, { params }: { params: Promise<{ examId: string }> }) {
@@ -20,7 +21,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ examId:
   if (!parsed.success) {
     return Response.json({ error: "Invalid request body", issues: parsed.error.issues }, { status: 400 });
   }
-  const { text, options, correctIndex } = parsed.data;
+  const { text, options, correctIndex, moduleId } = parsed.data;
 
   const existingCount = await db.question.count({ where: { examId } });
   const question = await db.question.create({
@@ -28,6 +29,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ examId:
       examId,
       text,
       order: existingCount + 1,
+      moduleId: moduleId ?? null,
       options: {
         create: options.map((optText, i) => ({ text: optText, isCorrect: i === correctIndex, order: i + 1 })),
       },

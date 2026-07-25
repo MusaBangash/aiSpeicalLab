@@ -104,3 +104,29 @@ export async function createStudent(input: CreateStudentInput): Promise<CreateSt
 
   return { ok: true, id: user.id, email, password };
 }
+
+export type ResetPasswordResult =
+  | { ok: true; id: string; email: string; password: string }
+  | { ok: false; error: string; status: number };
+
+/** Teacher-initiated reset for a forgotten password — the self-service
+ *  change-when-known flow already exists (PATCH /api/settings/password);
+ *  this is the only path for "forgot it entirely." Any teacher may reset any
+ *  student's password, matching this app's established any-teacher
+ *  precedent (journal entries, Doubt answering, badge awards). */
+export async function resetStudentPassword(studentId: string, teacherId: string): Promise<ResetPasswordResult> {
+  const student = await db.user.findUnique({ where: { id: studentId } });
+  if (!student || student.role !== "STUDENT") {
+    return { ok: false, error: "Student not found", status: 404 };
+  }
+
+  const password = generatePassword();
+  const hash = await bcrypt.hash(password, 10);
+
+  await db.user.update({
+    where: { id: studentId },
+    data: { password: hash, passwordResetAt: new Date(), passwordResetById: teacherId },
+  });
+
+  return { ok: true, id: student.id, email: student.email, password };
+}

@@ -258,6 +258,72 @@ export async function getAttemptScoreBreakdown(attemptId: string): Promise<{ cor
   return { correctCount, totalCount: questionIds.length };
 }
 
+export type TopicBreakdownRow = {
+  moduleId: string;
+  moduleTitle: string;
+  correctCount: number;
+  totalCount: number;
+  percentCorrect: number;
+};
+
+/**
+ * Per-topic strength/weakness across EVERY attempt a student has ever made
+ * (all retries, not just the latest/official one per exam) — a deliberate
+ * departure from the ExamRecord-latest-attempt convention used elsewhere
+ * (avg score, exams passed). This is a historical struggle-frequency view,
+ * not a current-standing view. A question's effective topic is its own
+ * moduleId if explicitly tagged, else the whole exam's moduleId.
+ */
+export async function getStudentTopicBreakdown(studentId: string): Promise<TopicBreakdownRow[]> {
+  const attempts = await db.examAttempt.findMany({
+    where: { studentId, status: { in: ["SUBMITTED", "AUTO_SUBMITTED"] } },
+    select: { id: true, questionIds: true },
+  });
+  if (attempts.length === 0) return [];
+
+  const allQuestionIds = [...new Set(attempts.flatMap((a) => questionIdsOf(a)))];
+
+  const questions = await db.question.findMany({
+    where: { id: { in: allQuestionIds } },
+    select: { id: true, moduleId: true, exam: { select: { moduleId: true } } },
+  });
+  const effectiveModuleByQuestion = new Map(questions.map((q) => [q.id, q.moduleId ?? q.exam.moduleId]));
+
+  const correctOptions = await db.questionOption.findMany({
+    where: { questionId: { in: allQuestionIds }, isCorrect: true },
+    select: { questionId: true, id: true },
+  });
+  const correctByQuestion = new Map(correctOptions.map((o) => [o.questionId, o.id]));
+
+  const answers = await db.attemptAnswer.findMany({
+    where: { attemptId: { in: attempts.map((a) => a.id) }, optionId: { not: null } },
+    select: { questionId: true, optionId: true },
+  });
+
+  const tally = new Map<string, { correct: number; total: number }>();
+  for (const a of answers) {
+    const moduleId = effectiveModuleByQuestion.get(a.questionId);
+    if (!moduleId) continue;
+    const row = tally.get(moduleId) ?? { correct: 0, total: 0 };
+    row.total += 1;
+    if (a.optionId === correctByQuestion.get(a.questionId)) row.correct += 1;
+    tally.set(moduleId, row);
+  }
+
+  const modules = await db.curriculumModule.findMany({ where: { id: { in: [...tally.keys()] } } });
+  const titleById = new Map(modules.map((m) => [m.id, m.title]));
+
+  return [...tally.entries()]
+    .map(([moduleId, { correct, total }]) => ({
+      moduleId,
+      moduleTitle: titleById.get(moduleId) ?? "Unknown module",
+      correctCount: correct,
+      totalCount: total,
+      percentCorrect: Math.round((100 * correct) / total),
+    }))
+    .sort((a, b) => a.percentCorrect - b.percentCorrect);
+}
+
 /**
  * Score, seal (if passed), and record the attempt as the student's
  * official result. Idempotent — calling this twice on an already-finished

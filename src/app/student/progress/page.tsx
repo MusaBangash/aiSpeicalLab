@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/shell/Icon";
 import { RankLadderCard } from "@/components/rank/RankLadderCard";
 import { BadgeShelf } from "@/components/rank/BadgeShelf";
+import { ExamScoreTrend } from "@/components/students/ExamScoreTrend";
+import { TopicBreakdown } from "@/components/students/TopicBreakdown";
 
 const CATEGORY_LABELS: Record<string, string> = {
   PARTICIPATION: "Participation",
@@ -69,6 +71,9 @@ export default async function StudentProgressPage() {
         <RankLadderCard status={rankStatus} />
         <BadgeShelf badges={badgeShelf} />
       </Card>
+
+      <ExamScoreTrend studentId={session.user.id} />
+      <TopicBreakdown studentId={session.user.id} />
 
       <Card className="feed-card" style={{ marginTop: 16 }}>
         <div className="feed-title">Entry history</div>

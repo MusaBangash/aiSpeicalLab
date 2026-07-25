@@ -19,6 +19,9 @@ export default async function QuestionsPage({ params }: { params: Promise<{ exam
   });
   if (!exam) redirect("/teacher/exams");
 
+  const modules = await db.curriculumModule.findMany({ orderBy: { order: "asc" } });
+  const examModuleTitle = modules.find((m) => m.id === exam.moduleId)?.title ?? "";
+
   // Difficulty stats: how often each question has been answered correctly,
   // across every attempt of this exam ever taken (not just the current bank).
   const questionIds = exam.questions.map((q) => q.id);
@@ -49,6 +52,8 @@ export default async function QuestionsPage({ params }: { params: Promise<{ exam
           questionsShown={exam.questionsShown}
           initialQuestions={exam.questions}
           stats={stats}
+          modules={modules}
+          examModuleTitle={examModuleTitle}
         />
       </div>
     </div>
