@@ -85,6 +85,8 @@ model User {
   doubtsResolved              Doubt[]               @relation("DoubtResolvedBy")
   badgesEarned                StudentBadge[]        @relation("StudentBadgeStudent")
   badgesAwarded               StudentBadge[]        @relation("StudentBadgeAwardedBy")
+  starsReceived               Star[]                @relation("StarStudent")
+  starsAwarded                Star[]                @relation("StarTeacher")
 }
 
 model PC {
@@ -216,6 +218,7 @@ model Class {
   enrollments       ClassEnrollment[]
   messagesTargeted  Message[]
   exercisesTargeted Exercise[]
+  stars             Star[]
 
   @@index([teacherId])
 }
@@ -768,4 +771,24 @@ model StudentBadge {
   @@unique([studentId, type])
   @@index([studentId])
   @@index([studentId, seenAt])
+}
+
+// One row per star awarded — unbounded, plain create, no correction/
+// audit fields. Deliberately un-retractable: a quick, final, in-class
+// recognition, not a formal record needing history (confirmed decision,
+// the opposite of JournalEntry's audit trail). Feeds src/lib/rank.ts's
+// points formula at STAR_POINT_VALUE points each — no separate "star
+// rank" progression track.
+model Star {
+  id        String   @id @default(cuid())
+  studentId String
+  student   User     @relation("StarStudent", fields: [studentId], references: [id])
+  teacherId String
+  teacher   User     @relation("StarTeacher", fields: [teacherId], references: [id])
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([studentId])
+  @@index([classId])
 }

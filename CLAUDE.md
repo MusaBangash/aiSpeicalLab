@@ -1552,6 +1552,87 @@ tests. All dry-run artifacts (`deploy/.env.dryrun`, the `backups/`
 directory created during the test, the built `stlab-dryrun-app` image)
 were deleted after verification.
 
+## Post-roadmap work — student Stars, quick in-class recognition feeding rank (2026-07-28)
+
+New feature, outside the (complete) 10-phase roadmap: a teacher can now
+give any enrolled student a "star" with one tap during a live class —
+recognizing a correct answer, good homework, a great idea, attendance,
+or anything else, with no per-reason tracking. Design was clarified
+through conversation before building (all confirmed): one shared running
+total (no categories), stars fold into the **existing** rank/points
+formula rather than becoming a second parallel progression track, and
+awarding is **quick-tap with no undo** — the opposite of `JournalEntry`'s
+audit trail, deliberately, since this is meant to be fast and casual
+during a lesson, not a formal corrigible record.
+
+**`Star` is the first model of its exact shape in this schema**: unbounded
+rows per student, plain `create`, zero correction/audit fields, from a
+teacher-initiated action. Closest precedents were `StudentBadge` (capped
+at one row per type — wrong shape, stars repeat) and `JournalEntry`
+(right "many rows, no cap" shape, but carries full audit machinery this
+feature explicitly doesn't need). New `src/lib/stars.ts` — `awardStar`/
+`getStarCount`, mirroring `badges.ts`'s `awardBadgeIfMissing`/
+`getBadgeShelf` pair but simpler (no upsert, since stars aren't capped).
+
+**Point value calibrated deliberately low — confirmed via direct
+discussion, not guessed**: the existing formula (10/exam pass, 0.5/day
+present, 5/journal entry, 20/badge) already values *rare, deliberate*
+signals highly and *frequent* ones (attendance) low. An initial instinct
+of 3 points/star was revised down to **`STAR_POINT_VALUE = 1`**
+specifically because stars are meant to be given often and casually —
+at 3 points, a generous teacher handing out a couple per class would let
+stars dwarf every other signal within a single week, making rank
+reflect "how generous is your teacher" rather than the holistic picture
+the formula was built for. `src/lib/rank.ts`'s `PointsBreakdown` gained
+`starPoints`, computed alongside the other three point sources in
+`getPointsBreakdown`'s existing `Promise.all` and folded into `total` —
+**`computeRank`/`RANK_LADDER` needed zero changes**, since they only ever
+consume the scalar `total`.
+
+**New `POST /api/classes/:classId/stars`** mirrors
+`classes/[classId]/enroll/route.ts` almost exactly (auth guard,
+`requireOwnedClass`, single-row create, no transaction/bulk shape) plus
+a student existence/role check matching the badge-award routes' pattern.
+**New `ClassStarSection.tsx`** reuses `getClassRoster`'s already-fetched
+`RosterEntry[]` (zero new server-side query on the class page) and
+mirrors `AttendanceOverrideRow.tsx`'s own-state-per-row/transient-"Saved"
+pattern — simpler than attendance's row since there's no persisted
+per-row status to load and no bulk action needing a `ConfirmSheet` (a
+single star isn't destructive enough to warrant one). Wired into
+`/teacher/classes/[classId]` as a new "Give stars" section, stacked
+after the existing "Attendance — today" section — no new top-level nav
+item, matching the existing precedent that per-class quick actions live
+as sections on the class detail page.
+
+**Display reuses `RankLadderCard.tsx` unmodified in structure** — just a
+5th `.rpb-row` alongside the existing Exams/Attendance/Journal/Badges
+breakdown. Since `STAR_POINT_VALUE = 1`, `points.starPoints` doubles as
+the literal star count, so no separate count field was needed anywhere.
+**Zero changes needed to either profile page**
+(`/teacher/students/[studentId]` or `/student/progress`) — both already
+pass `rankStatus` into `RankLadderCard` untouched, so the new row appears
+identically on both surfaces automatically, the same "same component,
+same data, both surfaces" convention already used for
+`DnaSummaryCard`/`TopicBreakdown`/`ExamScoreTrend`.
+
+Live-verified end-to-end via `npm test` (100 tests, 21 files — 2 new,
+confirming `awardStar`→`getStarCount`→`getPointsBreakdown`'s `starPoints`
+all agree, and that a star-less student correctly gets `starPoints: 0`;
+the pre-existing `getStudentRankStatus` integration test, which asserts
+an exact `points.total`, needed zero changes and still passed unmodified
+— confirming the new term is correctly additive, not a breaking
+recompute) + `tsc --noEmit` + curl against the real running dev server
+logged in as the real seeded teacher: awarded 3 real stars to a real
+enrolled student (Ahmad Ali, in "Morning Batch B") via the actual API,
+repeated 3× with no error (no unique constraint blocking multiples);
+confirmed cross-teacher 403 with a temporary second teacher account,
+404 on a nonexistent `studentId`, and 401 on a student-role POST; and
+confirmed the teacher's profile page, the student's own progress page,
+and the class detail page's new "Give stars" section all rendered
+correctly, with the profile pages showing byte-identical "Stars: 3" rows.
+All 3 test stars and the temporary teacher account were deleted after
+verification, confirmed reverted to 0 afterward.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.
@@ -1601,7 +1682,8 @@ were deleted after verification.
   `add_classes`, `add_student_profiles`, `add_class_schedule`,
   `add_messages`, `add_homework_assignments`, `add_doubts`,
   `add_student_badges`, `add_password_reset_and_question_topics`,
-  `add_notification_seen_tracking` — all additive, no renames.
+  `add_notification_seen_tracking`, `add_student_stars` — all additive,
+  no renames.
 - `var/student-photos/` (phase 2 enrollment photos) is gitignored and
   needs its own Docker volume in production, same as
   `var/screen-recordings/` — flat one-file-per-student, original format

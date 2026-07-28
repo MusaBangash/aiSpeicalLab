@@ -3,6 +3,7 @@ import { getStudentJoinDate } from "./classes";
 import { getExamCounts } from "./dashboard";
 import { getStudentMetrics } from "./metrics";
 import { countDaysPresent } from "./attendance";
+import { getStarCount, STAR_POINT_VALUE } from "./stars";
 
 export type RankName = "Recruit" | "Apprentice" | "Builder" | "Engineer" | "Architect" | "Master Engineer";
 
@@ -37,17 +38,19 @@ export type PointsBreakdown = {
   attendancePoints: number;
   journalPoints: number;
   badgePoints: number;
+  starPoints: number;
   total: number;
 };
 
 /** Points formula — computed live on every read, matches the codebase's
  *  established "computed on read" convention (lateness/streaks/etc). */
 export async function getPointsBreakdown(studentId: string): Promise<PointsBreakdown> {
-  const [examCounts, attendanceRows, metrics, badgeCount] = await Promise.all([
+  const [examCounts, attendanceRows, metrics, badgeCount, starCount] = await Promise.all([
     getExamCounts(studentId),
     db.attendance.findMany({ where: { studentId }, select: { status: true } }),
     getStudentMetrics(studentId),
     db.studentBadge.count({ where: { studentId } }),
+    getStarCount(studentId),
   ]);
 
   const highRatedActive = metrics.entries.filter(
@@ -58,13 +61,15 @@ export async function getPointsBreakdown(studentId: string): Promise<PointsBreak
   const attendancePoints = Math.floor(countDaysPresent(attendanceRows) / 2);
   const journalPoints = highRatedActive * 5;
   const badgePoints = badgeCount * 20;
+  const starPoints = starCount * STAR_POINT_VALUE;
 
   return {
     examPoints,
     attendancePoints,
     journalPoints,
     badgePoints,
-    total: examPoints + attendancePoints + journalPoints + badgePoints,
+    starPoints,
+    total: examPoints + attendancePoints + journalPoints + badgePoints + starPoints,
   };
 }
 

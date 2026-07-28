@@ -70,6 +70,10 @@ export function RankLadderCard({ status }: { status: StudentRankStatus }) {
           <div className="rpb-val">{points.badgePoints}</div>
           <div className="rpb-label">Badges</div>
         </div>
+        <div className="rpb-row">
+          <div className="rpb-val">{points.starPoints}</div>
+          <div className="rpb-label">Stars</div>
+        </div>
       </div>
     </div>
   );

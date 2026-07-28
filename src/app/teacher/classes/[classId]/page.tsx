@@ -10,6 +10,7 @@ import { ClassRosterClient } from "@/components/classes/ClassRosterClient";
 import { ClassScheduleForm } from "@/components/classes/ClassScheduleForm";
 import { ClassLivePanel } from "@/components/classes/ClassLivePanel";
 import { ClassAttendanceSection } from "@/components/classes/ClassAttendanceSection";
+import { ClassStarSection } from "@/components/classes/ClassStarSection";
 
 export default async function TeacherClassDetailPage({
   params,
@@ -38,6 +39,8 @@ export default async function TeacherClassDetailPage({
       <ClassLivePanel classId={classId} initialStudents={toClassActivityPayload(roster, activity)} />
       <h2>Attendance — today</h2>
       <ClassAttendanceSection classId={classId} date={toDateParam(today)} rows={attendanceRows} />
+      <h2>Give stars</h2>
+      <ClassStarSection classId={classId} roster={roster} />
       <ClassRosterClient classId={classId} roster={roster} enrollable={enrollable} />
     </div>
   );
