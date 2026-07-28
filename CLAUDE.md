@@ -1663,3 +1663,9 @@ confirmed a manual live click-through in a real browser. No longer a gap.
   attendance.
 - `docs/design/*.html` — the approved visual mockups everything is
   ported from.
+- `docs/06-go-live-checklist.md` — the ordered checklist for the first
+  real deploy to the R730 (secrets generation, ufw firewall verification,
+  a supervised restore drill, the TLS decision, and the first real
+  multi-PC lab-agent test) — everything that only real hardware and real
+  people can verify, as opposed to what's already been proven via the
+  local deploy dry-run and security audit.
