@@ -1345,6 +1345,102 @@ rows were created in the dev database during this verification — only
 a real, already-existing student's `seenAt`/`studentSeenAt` fields were
 set, which is the feature working as intended, not test pollution.
 
+## Post-roadmap work — backup restore procedure + verification + offsite runbook (2026-07-28)
+
+CI was verified green on real GitHub Actions (pushed the prior round's
+work — hit and fixed a one-time `gh`/OAuth `workflow`-scope rejection on
+the push, resolved via `gh auth refresh -h github.com -s workflow`).
+Next priority: a Postgres backup strategy. Research found the backup
+itself **already existed and worked** — `deploy/docker-compose.yml` has
+a `backup` service doing a nightly `pg_dump` with 30-day local retention,
+plus a manual `scripts/backup-now.sh` — but this had never been
+chronicled here. The real, confirmed gaps were narrower than "build a
+backup strategy from scratch": no restore procedure existed anywhere; the
+backup loop had no error handling (a failed `pg_dump` — bad password, DB
+unreachable, disk full — would silently fall through to `sleep` with zero
+logging); nothing verified a dump actually restores cleanly (a truncated
+or empty file would go unnoticed until the day it's needed); and the
+offsite-copy step was a vague one-liner ("copy them off the server
+weekly") with no runbook. Confirmed via `AskUserQuestion`: keep the
+offsite step **local-only/manual** (no cloud, no remote sync, no
+staging-export helper) — matches this app's offline-LAN philosophy and
+avoids inventing infrastructure (a second server? cloud storage?) not
+confirmed to exist for this lab.
+
+**New `scripts/restore-backup.sh`** — destructive restore of a `.sql`
+dump into the live `db` service: drops and recreates the `stlab`
+database (the existing dump is plain SQL, no `--clean`/`--create`, so
+restoring into a non-empty DB either errors or duplicates rows —
+drop+recreate is the only way to guarantee the dump is the whole truth,
+which is also why this needs to be loudly destructive). Requires typing
+the literal word `yes` at an interactive prompt by default (`-y`/`--yes`
+bypasses it for a deliberate, scripted DR drill) — the first script in
+this repo with an interactive confirmation, justified by this being a
+rarely-run, genuinely destructive admin operation. `-v ON_ERROR_STOP=1`
+on every `psql` call is the detail that makes a corrupt dump surface as
+a nonzero exit instead of `psql` silently chewing through errors and
+still exiting 0 — this is the mechanism that actually closes the
+"nothing verifies a dump restores cleanly" gap.
+
+**New `scripts/verify-backup.sh`** — proves a given dump restores
+cleanly **without touching the real `stlab` database**: restores into a
+disposable `stlab_verify_drill` database on the same instance,
+sanity-checks the `User` table has rows, then drops the drill database
+(`trap cleanup EXIT` guarantees this happens even on a failed run
+partway through). Kept as a separate, standalone, on-demand script —
+recommended monthly, against the newest file on the offsite drive, to
+prove the *copy* survived intact, which the automated nightly check
+below can never do (it only ever sees tonight's own dump).
+
+**Hardened the `backup` service** in `deploy/docker-compose.yml`: the
+old inline `sh -c 'while true; do ... done'` one-liner (no error
+handling, no logging) was extracted into a new version-controlled
+`scripts/backup-loop.sh`, bind-mounted read-only and used as the
+entrypoint — no `Dockerfile` change needed, `backup` stays the plain
+`postgres:17` image. Every cycle now: dumps, confirms the file is
+non-empty, restores it into the same `stlab_verify_drill` throwaway
+database directly over `-h db` (this container has no Docker CLI/socket,
+so it cannot itself shell out to `verify-backup.sh` — the ~10 lines of
+`psql` calls are deliberately duplicated across the two execution
+contexts rather than forcing a shared script across an environment that
+can't support it), sanity-checks it, then drops it — logging every
+step's outcome (`OK`/`FAILED`/`VERIFY OK`/`VERIFY FAILED`, greppable, no
+parser needed) to `/backups/backup.log`. `set -u` (not `set -e`) is
+deliberate — the loop must survive one bad night and keep running so
+tomorrow's dump still gets attempted, rather than crash-looping via
+`restart: unless-stopped` with no clearer signal than before.
+
+**`deploy/README.md`** gained three concrete sections replacing the old
+one-liner: a restore procedure (stop the app → run
+`restore-backup.sh` → restart → confirm the app actually shows the
+restored data, since a script printing "RESTORE OK" isn't the same as
+the app working), a verification section (pointing at the automatic
+nightly drill's log plus the monthly manual offsite-drive check), and an
+explicit weekly offsite-copy runbook (which files, from where, onto what
+media, how to confirm later it actually happened by checking the newest
+copied file's date) — replacing the previous single vague sentence.
+
+Live-verified end-to-end against the real local `stlab-db` container
+(both new scripts read `DB_CONTAINER`/`DB_USER`/`DB_NAME` overrides
+specifically so they can target it directly instead of
+`deploy/docker-compose.yml`, which isn't running locally): a real
+`pg_dump` from local dev (13 `User` rows, confirmed before touching
+anything) → `verify-backup.sh` reported "VERIFY OK ... 13 row(s)" →
+confirmed no leftover drill database afterward; two negative tests — a
+garbage-content file correctly failed with a nonzero exit instead of
+silently passing, and a 0-byte file was caught before ever touching
+Postgres; `restore-backup.sh -y` against a throwaway database name
+reported "RESTORE OK" and the restored copy had the correct 13 rows;
+the interactive prompt was confirmed to genuinely block restoration when
+answered "no" (nonzero exit, target database never created); every test
+database and temp file was cleaned up, and the real dev `stlab` database
+was confirmed unchanged (still 13 rows) throughout. `docker compose
+-f deploy/docker-compose.yml config` confirmed the edited YAML still
+parses cleanly (both the `../backups` bind mount and the new
+`../scripts/backup-loop.sh:ro` mount resolve correctly). `npx tsc
+--noEmit` and the full `npm test` suite (98 tests) stayed clean — this
+work has zero interaction with the app's TypeScript or test suite.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.
