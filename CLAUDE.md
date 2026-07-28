@@ -1441,6 +1441,117 @@ parses cleanly (both the `../backups` bind mount and the new
 --noEmit` and the full `npm test` suite (98 tests) stayed clean — this
 work has zero interaction with the app's TypeScript or test suite.
 
+## Post-roadmap work — production deploy dry-run, 3 real bugs found and fixed (2026-07-28)
+
+`deploy/docker-compose.yml` (`db`/`app`/`backup`) had never actually
+been stood up and tested end-to-end — only written, across several
+prior rounds. Before it ever touches the real R730, this round dry-ran
+the full stack locally: built the image, brought up all three services,
+ran migrations, seeded, logged in for real through the container, and
+forced one backup cycle — all inside an isolated `-p stlab-dryrun`
+Compose project with a throwaway `deploy/.env.dryrun` (gitignored), so
+the developer's real root `.env`, local `next dev`, and the standalone
+dev `stlab-db` container were never touched. **This single dry-run
+found three real, independently-confirmed bugs** — exactly why "written
+but never run" isn't the same as "working," and consistent with this
+project's whole-history bias toward live-verifying over assuming.
+
+**Bug #1 — no `.dockerignore`, confirmed real overwrite risk.**
+`deploy/Dockerfile`'s build stage runs `RUN npm ci` (fresh Linux-native
+`node_modules` inside the image) then `COPY . .` — with `context: ..`
+in `docker-compose.yml` and no `.dockerignore` anywhere in the repo, the
+entire build context (including the real, 882MB/~17,711-file
+`node_modules/` sitting at the repo root) would get copied in afterward,
+overwriting the container's fresh Linux binaries with the host's.
+**Confirmed conclusively, not just theorized**: after adding
+`.dockerignore` (new, repo root — Docker only honors one at the build
+context's root) excluding `node_modules`/`.next`/`.git`/`var`/`backups`/
+`.env*`/etc., the built image was inspected directly —
+`node_modules/@prisma/engines/libquery_engine-linux-musl-openssl-3.0.x.so.node`,
+with genuine ELF magic bytes (`7f 45 4c 46`), proving a real Linux
+binary made it in, not a Windows one leaked from the host. One edge case
+checked directly rather than assumed: excluding `.git` doesn't break
+`npm ci`'s `husky` `prepare` hook — `node_modules/husky/index.js` just
+prints a harmless message and returns if `.git` is missing, it doesn't
+throw.
+
+**Bug #2 — `.env.example` never documented `DB_PASSWORD`, which
+`deploy/docker-compose.yml` requires standalone** (used in `db`'s
+`POSTGRES_PASSWORD`, `app`'s constructed `DATABASE_URL`, and `backup`'s
+`PGPASSWORD`). Following `deploy/README.md`'s literal documented steps
+would have left it completely undefined — Compose hard-fails immediately
+on `:?set in .env`. Fixed by adding a `DB_PASSWORD` block to
+`.env.example`, styled like its neighbors.
+
+**Bug #3 — found only by actually generating a real password and
+running the stack**: the fix for bug #2 originally suggested `openssl
+rand -base64 24`, matching this file's existing `AUTH_SECRET` guidance.
+But `docker-compose.yml` interpolates `${DB_PASSWORD}` directly into
+`app`'s `DATABASE_URL` (`postgresql://stlab:${DB_PASSWORD}@db:5432/stlab`)
+with **no URL-encoding** — a base64-generated password containing `/`
+or `+` (confirmed: the dry-run's own generated password was
+`Y5U3yGh801BwPuZ3+GYemrGqs+Ck5uA/`) breaks the connection string outright
+(Prisma error `P1013: invalid port number in database URL` — the `/`
+gets parsed as a path separator). Fixed `.env.example`'s guidance to
+`openssl rand -hex 24` instead — hex output is always URL-safe, no
+encoding question ever arises. This would have silently broken a real
+first-time deploy if an admin had followed the (now-corrected)
+documented generation method verbatim.
+
+**Bug #4 — Auth.js v5 `UntrustedHost` error, 500 on every auth route in
+production.** `next dev` trusts `localhost` unconditionally, so this was
+never visible in three-plus months of local development — it only
+surfaces under `next start` (what the Docker image actually runs).
+Confirmed via app-container logs: `[auth][error] UntrustedHost: Host
+must be trusted`. Fixed with one line in `src/lib/auth.ts`'s
+`NextAuth({...})` config: `trustHost: true` — safe here specifically
+because this deployment has no reverse proxy in front (the container is
+the LAN-facing endpoint directly, confirmed against `docs/03-network.md`'s
+topology), so the incoming Host header genuinely is trustworthy. Chosen
+over setting `AUTH_TRUST_HOST=true` as an env var so the fix can't be
+silently missed by an `.env` that forgets it.
+
+**Everything else confirmed already correct**: migrations run
+automatically on every `app` container start (`CMD ["sh","-c","npx
+prisma migrate deploy && npm start"]`) — all 18 existing migrations
+applied cleanly to a genuinely fresh database with zero manual
+intervention. Seeding is deliberately NOT automatic and NOT idempotent
+(`prisma/seed.ts` has no existence checks) — confirmed it must be
+triggered manually, exactly once (`docker compose exec app npx prisma db
+seed`), which is what this dry-run did. `docs/03-network.md` (ufw,
+lab-subnet rules) is correctly inapplicable to a local dry-run and was
+skipped entirely.
+
+**The `backup` service's first real cycle inside the actual Compose
+network** (previously only exercised against the standalone dev
+`stlab-db` container via env-var overrides, never against the `db`
+Compose service by its internal hostname) was forced rather than waiting
+24h — confirmed `backups/backup.log` showed a clean
+`OK dump=...size=98735` immediately followed by `VERIFY OK
+dump=...rows=13` (13 = 1 seeded teacher + 12 seeded students, exactly
+matching `prisma/seed.ts`'s output). **Unplanned bonus verification**:
+the log also captured two earlier `FAILED` entries from real container
+startup races (the `backup` service starting before Postgres was ready
+to accept connections during this session's password-mismatch
+recreate/rebuild cycle) — proving the hardened loop's "log the failure
+and keep running rather than crash" design (from the prior backup round)
+genuinely works under a real failure, not just in theory. Same
+"accidentally-then-deliberately verified" precedent as Phase 5's
+staleness-sweep finding.
+
+Live-verified end-to-end: real teacher login
+(`bangash@stlab.local`/`change-me-123`) through the fully containerized
+stack returned a 302 and a session with `"role":"TEACHER"`; full
+teardown (`down -v`) confirmed via `docker ps -a` (only the pre-existing
+`stlab-db` remained), `docker volume ls` (zero `stlab-dryrun_*` volumes
+left), and the real dev `stlab` database's row count unchanged (13) and
+the repo-root `.env`'s mtime unchanged throughout. `npx tsc --noEmit`
+and the full `npm test` suite (98 tests) stayed clean afterward — none
+of this round's fixes touch application logic paths covered by existing
+tests. All dry-run artifacts (`deploy/.env.dryrun`, the `backups/`
+directory created during the test, the built `stlab-dryrun-app` image)
+were deleted after verification.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.

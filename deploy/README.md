@@ -14,6 +14,13 @@
 Backups land in `backups/` daily, kept 30 days, and are automatically
 restore-tested the moment each one is created (see "Verifying backups" below).
 
+### Dry-run before go-live
+
+Before running this on the real R730, validate the stack locally first —
+see CLAUDE.md's dated entry for the exact throwaway-env, `-p stlab-dryrun`
+dry-run procedure (build-context size check, auto-migration, one manual
+seed, a real login, and one forced backup cycle).
+
 ## Restoring from a backup
 
 **This permanently overwrites all current data — only do this when you actually

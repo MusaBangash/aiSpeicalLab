@@ -2,6 +2,7 @@ node_modules/
 .next/
 .env
 .env.test
+deploy/.env.dryrun
 *.log
 prisma/dev.db
 __pycache__/

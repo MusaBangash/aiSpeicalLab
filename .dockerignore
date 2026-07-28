@@ -1,0 +1,35 @@
+# Docker build context is the repo root (`context: ..` in
+# deploy/docker-compose.yml). Everything listed here is excluded from
+# what's sent to the daemon and from what `COPY . .` in deploy/Dockerfile
+# copies into the image.
+
+# Host-installed deps: `RUN npm ci` in the Dockerfile already installs a
+# fresh, Linux-native node_modules inside the image. If the host's
+# node_modules were copied in afterward by `COPY . .`, it would overwrite
+# native binaries (e.g. Prisma's query engine) with Windows-incompatible
+# ones, and would also bloat the build context by ~900MB and defeat layer
+# caching.
+node_modules
+
+# Rebuilt fresh by `npm run build` inside the image.
+.next
+
+# Never needed at build or run time.
+.git
+
+# Runtime data directories — bind/volume-mounted by docker-compose.yml,
+# never baked into the image.
+var
+backups
+
+# Secrets are injected via docker-compose's `environment:` block, never
+# baked into the image. Also blocks deploy/.env.dryrun used for local
+# dry-runs.
+.env
+.env.*
+
+# Local-only artifacts.
+*.log
+coverage
+tsconfig.tsbuildinfo
+.claude

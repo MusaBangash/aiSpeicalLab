@@ -19,6 +19,14 @@ const credentialsSchema = z.object({
 export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt" },
   pages: { signIn: "/login" },
+  // Auth.js v5 rejects requests from a Host it can't verify once running
+  // in production (`next start`) — dev mode (`next dev`) trusts localhost
+  // regardless, so this has no effect there. Confirmed live during a
+  // deploy dry-run: without this, every auth route 500s with
+  // "UntrustedHost" the moment the container serves real traffic. Safe
+  // here because this app has no reverse proxy in front — the container
+  // is the LAN-facing endpoint directly (see docs/03-network.md).
+  trustHost: true,
   providers: [
     Credentials({
       credentials: {
