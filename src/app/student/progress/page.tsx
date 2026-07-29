@@ -110,8 +110,8 @@ export default async function StudentProgressPage() {
           <RankAvatar name={session.user.name ?? ""} rank={rankStatus.rank.currentRank} />
           <div className="feed-title" style={{ marginBottom: 0 }}>Rank &amp; Badges</div>
         </div>
-        <RankLadderCard status={rankStatus} />
-        <BadgeShelf badges={badgeShelf} />
+        <RankLadderCard status={rankStatus} certificateHref="/student/certificate/rank" />
+        <BadgeShelf badges={badgeShelf} certificateBaseHref="/student/certificate" />
       </Card>
 
       <ExamScoreTrend studentId={session.user.id} />

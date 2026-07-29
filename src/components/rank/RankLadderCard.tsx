@@ -1,8 +1,15 @@
+import Link from "next/link";
 import { Chip } from "@/components/ui/Chip";
 import { Icon } from "@/components/shell/Icon";
 import type { StudentRankStatus } from "@/lib/rank";
 
-export function RankLadderCard({ status }: { status: StudentRankStatus }) {
+export function RankLadderCard({
+  status,
+  certificateHref,
+}: {
+  status: StudentRankStatus;
+  certificateHref?: string;
+}) {
   const { tenureMonths, points, rank } = status;
   const nextRankMinPoints =
     rank.nextRank !== null ? points.total + (rank.pointsToNextRank ?? 0) : null;
@@ -21,6 +28,11 @@ export function RankLadderCard({ status }: { status: StudentRankStatus }) {
             {points.total} pts · {tenureMonths} months tenure
           </div>
         </div>
+        {certificateHref ? (
+          <Link href={certificateHref} style={{ marginLeft: "auto", fontSize: 12 }}>
+            View certificate
+          </Link>
+        ) : null}
       </div>
 
       {rank.nextRank ? (

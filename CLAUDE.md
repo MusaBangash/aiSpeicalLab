@@ -1904,6 +1904,79 @@ byte-identical avatar and ring; the six pre-existing `.me-avatar` sites
 test data was created or needed cleanup — this feature is purely
 presentational, reading data that already existed.
 
+## Post-roadmap work — printable certificates (2026-07-29)
+
+Fifth of the agreed 7-feature sequence: a printable/shareable
+certificate for an earned badge or a student's current rank, directly
+copying this app's existing "printable exam paper" pattern
+(`src/components/exams/PrintExamPaper.tsx`) — a `.no-print` control bar
+with a plain `window.print()` button, and a `.print-only` block holding
+the actual content, styled by the already-global `src/styles/print.css`
+toggle. **No PDF library, no new dependency** — matches this app's
+established offline-LAN "browser print dialog only" convention exactly.
+
+**Two asymmetric facts confirmed via research before designing, not
+discovered mid-build**: badges have a genuine historical date
+(`StudentBadge.earnedAt`, stored) — a badge certificate can honestly
+say "Earned on [real date]." Rank has **no such date anywhere** —
+`computeRank` is entirely computed-on-read from live tenure/points
+facts, with no table ever persisting "reached this rank on X." A rank
+certificate therefore says "Issued on [today]," not a fabricated
+achievement date — a deliberate, confirmed-accurate distinction, not an
+oversight. Separately confirmed: `Lab.name` (the school name) had never
+been fetched or displayed anywhere in this app before this round — a
+genuinely new (small) query, not a reuse of an existing pattern.
+
+**Why 4 small page routes instead of the exam-paper's
+inline-on-one-page shape**: the exam paper only ever prints one thing
+per page. A student can have several earned badges plus a rank — if
+multiple `.print-only` blocks lived stacked on the same page,
+`window.print()` would print all of them at once, not the one intended.
+So each certificate gets its own dedicated page
+(`/student/certificate/badge/[type]`, `/student/certificate/rank`, and
+teacher-facing equivalents under
+`/teacher/students/[studentId]/certificate/...`), reached via a new
+"View certificate" link. New shared `Certificate.tsx` (client component)
+renders the actual printable markup; each of the 4 pages does its own
+auth guard + existence check + data-fetch and passes props into it —
+plain, separate files rather than one clever merged catch-all route,
+matching this codebase's "no premature abstraction" convention.
+
+**`BadgeShelf.tsx`/`RankLadderCard.tsx`** (both already reused
+unmodified across the student's own progress page and the teacher's
+per-student page) gained **optional** `certificateBaseHref`/
+`certificateHref` props — omitted entirely (as before) wherever a
+caller doesn't pass them, zero risk to any other usage. A not-yet-earned
+badge type, or a garbage type value in the URL, both redirect cleanly
+back to the profile page rather than ever rendering a certificate for
+something not true — confirmed live, not assumed.
+
+**No new automated test file** — the only new logic is a straightforward
+"does this student actually have this badge" existence check and some
+string formatting, already exercised indirectly by
+`getBadgeShelf`/`getStudentRankStatus`. Verified via live curl instead,
+consistent with prior presentational/routing-only rounds in this
+project that skipped a dedicated test file when there was no new pure
+function or query logic to guard.
+
+Live-verified end-to-end via `npm test` (108 tests, 24 files — unchanged,
+confirming this round touches nothing the existing suite covers) +
+`tsc --noEmit` + curl against the real running dev server, logged in as
+a real seeded student (Ahmad Ali) with a genuine earned badge
+(`TEAM_PLAYER`, earned 25 Jul 2026 per its own real `earnedAt`): the
+progress page showed "View certificate" links on both the rank card and
+the earned badge tile; the rank certificate rendered "AI Engineering
+Lab" / "Ahmad Ali" / "has achieved the rank of Recruit" / "Issued on: 29
+July 2026"; the badge certificate rendered the real earned-date, "Earned
+on: 25 July 2026"; a not-earned badge type (`PERFECT_SCORE`) and a
+garbage type value both correctly redirected to `/student/progress`
+instead of showing anything; the teacher's view of the same student
+rendered byte-identical certificates via the parallel
+`/teacher/students/[studentId]/certificate/...` routes; the pre-existing
+exam-paper print flow (`/teacher/exams/[examId]/questions`) was
+confirmed still working unchanged. No test data was created or needed
+cleanup — this feature only reads already-existing badge/rank/lab data.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.

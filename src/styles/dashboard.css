@@ -425,6 +425,41 @@
 .print-only {
   display: none;
 }
+.certificate-frame {
+  border: 3px solid var(--gold);
+  padding: 48px;
+  text-align: center;
+  font-family: var(--serif, serif);
+}
+.certificate-lab {
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.certificate-kicker {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 16px 0;
+  color: var(--gold-dark);
+}
+.certificate-line {
+  font-size: 14px;
+  color: var(--muted);
+}
+.certificate-name {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 12px 0;
+}
+.certificate-achievement {
+  font-size: 18px;
+  margin-bottom: 24px;
+}
+.certificate-date {
+  font-size: 13px;
+  color: var(--muted);
+}
 .exam-duo {
   display: grid;
   grid-template-columns: 1fr 1.4fr;
