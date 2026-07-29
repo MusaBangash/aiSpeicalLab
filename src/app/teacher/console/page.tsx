@@ -8,24 +8,30 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { startOfDay } from "@/lib/attendance";
-import { getTeacherConsole } from "@/lib/dashboard";
+import { getTeacherConsole, getMostImprovedStudents } from "@/lib/dashboard";
 import { getAtRiskStudents } from "@/lib/atrisk";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/shell/Icon";
 import { AtRiskStudentsCard } from "@/components/students/AtRiskStudentsCard";
+import { MostImprovedCard } from "@/components/students/MostImprovedCard";
 
 export default async function TeacherConsolePage() {
   const session = await auth();
   if (!session || session.user.role !== "TEACHER") redirect("/login");
 
   const today = startOfDay(new Date());
-  const [data, atRiskStudents] = await Promise.all([getTeacherConsole(today), getAtRiskStudents(today)]);
+  const [data, atRiskStudents, mostImproved] = await Promise.all([
+    getTeacherConsole(today),
+    getAtRiskStudents(today),
+    getMostImprovedStudents(today),
+  ]);
 
   return (
     <div className="page-anim">
       <PageHeader title="Console" />
       <AtRiskStudentsCard students={atRiskStudents} />
+      <MostImprovedCard students={mostImproved} />
       <div className="hero-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <Card className="mini-card">
           <div className="mini-top">

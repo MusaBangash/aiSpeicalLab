@@ -1977,6 +1977,64 @@ exam-paper print flow (`/teacher/exams/[examId]/questions`) was
 confirmed still working unchanged. No test data was created or needed
 cleanup — this feature only reads already-existing badge/rank/lab data.
 
+## Post-roadmap work — most-improved leaderboard (2026-07-29)
+
+Sixth of the agreed 7-feature sequence: a lab-wide "Most improved (last
+30 days)" list on `/teacher/console`, right alongside the existing
+at-risk card — both confirmed via `AskUserQuestion` before building
+(rolling 30-day window, not calendar month; lab-wide, not per-class).
+Deliberately **not** a raw-score leaderboard — per the original
+brainstorm, that design tends to demotivate everyone except the top few
+students. Improvement is measured as **percentage of the remaining gap
+closed**: `(recentAvg - priorAvg) / (100 - priorAvg)`, so 40%→70%
+(closing half of a 60-point gap) scores higher than 90%→95% (closing
+half of a 10-point gap) — rewards growth, not absolute standing.
+
+**No new schema, no new query shape** — `getMostImprovedStudents`
+(`src/lib/dashboard.ts`) reuses `getExamRecordsByStudent` (added in the
+at-risk-list round) completely unmodified, just splitting the same
+batched per-student `ExamRecord` history at `today - 30 days` instead of
+feeding it into `computeScoreTrend`. No import-cycle risk like the
+at-risk feature had — this needs nothing from `exam.ts`/`badges.ts`, so
+it lives directly in `dashboard.ts` with zero new dependency edges.
+
+**A student needs genuine history on both sides of the 30-day split to
+appear at all** — one exam record 40 days ago and none since (or vice
+versa) is "insufficient data," not padded into a fabricated comparison;
+confirmed since `ExamRecord`'s `@@unique([examId, studentId])` means a
+student's prior-window and recent-window records are always genuinely
+different exams, never the same exam re-scored. **Declining students
+still appear, clamped to 0%, not hidden** — going from 80%→60% is a
+legitimate "closed none of the gap" result, and hiding it would look
+like a bug more than a feature. Returns the full sorted list (same
+"compute everything, let the UI decide" convention as `getBadgeShelf`);
+`MostImprovedCard.tsx` (new, mirrors `AtRiskStudentsCard.tsx`'s
+`.feed-item` shape exactly) slices to the top 10 and links each row to
+that student's profile.
+
+**A real Prisma behavior was confirmed, not assumed, before relying on
+it in the test**: `ExamRecord.updatedAt` is a `@updatedAt`-managed field,
+and no prior test in this codebase had ever explicitly set one on
+`.create()`. Confirmed live via the new test itself — passing an
+explicit `updatedAt` value into `db.examRecord.create()` is honored
+as-is (Prisma only auto-manages the field when it's omitted), which is
+what makes controlling which side of the 30-day cutoff a fixture record
+falls on possible at all.
+
+Live-verified end-to-end via `npm test` (110 tests, 26 files — 2 new:
+an improving-vs-declining-vs-excluded scenario with hand-computed
+expected percentages, sort order, and exclusion of both one-window-only
+students; a zero-history student never appearing) + `tsc --noEmit` +
+curl against the real running dev server logged in as the real seeded
+teacher (`bangash@stlab.local`): `/teacher/console` renders "Most
+improved (last 30 days)" directly below "At-risk students," correctly
+showing the empty state ("Not enough exam history yet to measure
+improvement") — confirmed correct, not a bug, after checking the real
+dev DB directly and finding only one `ExamRecord` exists there (10 days
+old), so no seeded student actually has history spanning both windows
+yet. No test data was created in the dev database during verification —
+only the integration test's own fixtures were created and cleaned up.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.

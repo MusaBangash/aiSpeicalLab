@@ -81,6 +81,46 @@ export async function getStudentDashboard(studentId: string): Promise<StudentDas
   };
 }
 
+export type MostImprovedRow = {
+  id: string;
+  name: string;
+  priorAvg: number;
+  recentAvg: number;
+  improvementPercent: number; // 0-100, percentage of the remaining gap closed
+};
+
+const IMPROVEMENT_WINDOW_DAYS = 30;
+
+/** Rolling-window improvement, not a calendar term — splits each
+ *  student's already-fetched ExamRecord history at `today - 30 days`.
+ *  A student needs at least one record on BOTH sides of that split to
+ *  appear at all; students who only have history in one window are
+ *  omitted, not padded with a fabricated comparison. */
+export async function getMostImprovedStudents(today: Date = new Date()): Promise<MostImprovedRow[]> {
+  const students = await db.user.findMany({ where: { role: "STUDENT" }, select: { id: true, name: true } });
+  if (students.length === 0) return [];
+
+  const cutoff = new Date(today.getTime() - IMPROVEMENT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const recordsByStudent = await getExamRecordsByStudent(students.map((s) => s.id));
+
+  const rows: MostImprovedRow[] = [];
+  for (const student of students) {
+    const records = recordsByStudent.get(student.id) ?? [];
+    const recent = records.filter((r) => r.updatedAt >= cutoff);
+    const prior = records.filter((r) => r.updatedAt < cutoff);
+    if (recent.length === 0 || prior.length === 0) continue;
+
+    const recentAvg = recent.reduce((sum, r) => sum + r.scorePercent, 0) / recent.length;
+    const priorAvg = prior.reduce((sum, r) => sum + r.scorePercent, 0) / prior.length;
+    const gap = 100 - priorAvg;
+    const improvementPercent = gap > 0 ? Math.max(0, Math.round(((recentAvg - priorAvg) / gap) * 100)) : 0;
+
+    rows.push({ id: student.id, name: student.name, priorAvg: Math.round(priorAvg), recentAvg: Math.round(recentAvg), improvementPercent });
+  }
+
+  return rows.sort((a, b) => b.improvementPercent - a.improvementPercent);
+}
+
 export type TeacherConsole = {
   studentCount: number;
   presentToday: number;
