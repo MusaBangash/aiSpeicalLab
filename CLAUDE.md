@@ -1789,6 +1789,70 @@ links to their profiles; `/teacher/students`'s pre-existing "At risk"
 toggle still rendered correctly after the constant extraction. No test
 data required cleanup — this feature only reads already-existing data.
 
+## Post-roadmap work — wellbeing check-in (2026-07-29)
+
+Third of the agreed 7-feature sequence. A quick, optional student-side
+"how are you feeling today" self-report — deliberately separate from the
+teacher-authored `JournalEntry` system (participation/behaviour/
+extra-activity ratings). Confirmed via research this is genuinely new:
+`getStudentMetrics` and the full schema had zero mood/wellbeing overlap
+to fold into. `JournalEntry` was the wrong direction (teacher-authored);
+`Doubt` was the closest "student creates a row" precedent but carries a
+full teacher answer/resolve lifecycle this feature doesn't need — a
+check-in needs zero teacher-side mutation, purely read/informational.
+`Attendance`'s `@@unique([studentId, date])` daily-bucket shape (and its
+`startOfDay()` UTC-truncation-safe helper) was the right pattern to
+copy instead.
+
+**New `Mood` enum** (`GREAT`/`GOOD`/`OKAY`/`LOW`/`STRUGGLING`) rather
+than a plain 1-5 int like `JournalEntry.rating` — a genuinely separate
+signal reads more clearly as named values than a bare number a teacher
+has to interpret, and this schema already uses small discrete enums for
+this kind of state (`AttendanceStatus`, `JournalCategory`). New
+`WellbeingCheckIn` model: one row per student per day
+(`@@unique([studentId, date])`), **deliberately simpler than
+`JournalEntry`** — no audit trail, no supersede/retract machinery.
+Resubmitting the same day **updates** the row (`db.wellbeingCheckIn.upsert`)
+rather than being blocked — a student correcting "I said Low this
+morning but I'm actually okay now" is the normal case here, unlike
+`Attendance`'s create-only-by-policy semantics. Does **not** feed
+`src/lib/rank.ts`'s points formula (unlike Stars) and does **not** fold
+into the `dna.ts` narrative summary — an intentionally non-gamified,
+teacher-visibility-only signal.
+
+New `src/lib/wellbeing.ts` (`submitCheckIn`/`getTodayCheckIn`/
+`getCheckInsForStudent`) and `POST /api/wellbeing/checkin`
+(student-only, zod-validated mood enum). **`CheckInWidget.tsx`**
+(new, client) sits at the very top of `/student/dashboard` — before the
+existing `.hero-grid`, since it needs an interactive mood-picker rather
+than a stat tile, and "the first thing a student sees" matches the
+"quick daily prompt" framing — five mood buttons pre-populated with
+today's existing submission if one exists, so reloading the dashboard
+shows "already checked in" state (confirmed live) rather than a blank
+form every time. **`WellbeingHistoryCard.tsx`** (new) is a plain
+read-only list — no status chip, no lifecycle, unlike
+`DoubtHistoryCard` — inserted on `/teacher/students/[studentId]` right
+after the existing "Journal timeline" card. Deliberately **no new
+student-facing history page and no new nav item** — the dashboard
+widget's own "already checked in" state is enough for the student side;
+history is meant for the *teacher* to see, not for the student to browse.
+
+Live-verified end-to-end via `npm test` (107 tests, 24 files — 2 new,
+confirming: no check-in returns `null`; a submission creates a row;
+resubmitting the *same* day updates that exact row rather than creating
+a duplicate — confirmed by row-id equality, not just row count; a
+different day creates a genuinely separate row; the optional note can
+be omitted cleanly) + `tsc --noEmit` + curl against the real running
+dev server: a valid mood submission returned `{ok:true}`, an invalid
+mood value correctly 400'd, a teacher-role POST correctly 401'd;
+reloading the student dashboard after submitting showed the "Good"
+button highlighted gold with the saved note pre-filled, confirming the
+"already checked in today" state persists across page loads; the
+teacher's student-profile page showed "🙂 Good — feeling productive
+today, 29 Jul 2026" in the new Wellbeing card in the correct position.
+The one real check-in row created during manual verification was
+deleted afterward.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.
@@ -1838,8 +1902,8 @@ data required cleanup — this feature only reads already-existing data.
   `add_classes`, `add_student_profiles`, `add_class_schedule`,
   `add_messages`, `add_homework_assignments`, `add_doubts`,
   `add_student_badges`, `add_password_reset_and_question_topics`,
-  `add_notification_seen_tracking`, `add_student_stars` — all additive,
-  no renames.
+  `add_notification_seen_tracking`, `add_student_stars`,
+  `add_wellbeing_checkins` — all additive, no renames.
 - `var/student-photos/` (phase 2 enrollment photos) is gitignored and
   needs its own Docker volume in production, same as
   `var/screen-recordings/` — flat one-file-per-student, original format

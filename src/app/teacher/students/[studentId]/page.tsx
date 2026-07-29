@@ -12,8 +12,10 @@ import { getBadgeShelf } from "@/lib/badges";
 import { getStudentTopicBreakdown } from "@/lib/exam";
 import { getDoubtsForStudent } from "@/lib/doubts";
 import { computeScoreTrend, pickWeakestTopic, countDoubtsOnTopicThisTerm, generateDnaSummary } from "@/lib/dna";
+import { getCheckInsForStudent } from "@/lib/wellbeing";
 import { DnaSummaryCard, type DnaHighlight } from "@/components/students/DnaSummaryCard";
 import { RecentDoubtsCard } from "@/components/doubts/RecentDoubtsCard";
+import { WellbeingHistoryCard } from "@/components/wellbeing/WellbeingHistoryCard";
 import { RankLadderCard } from "@/components/rank/RankLadderCard";
 import { BadgeShelf } from "@/components/rank/BadgeShelf";
 import { BadgeAwardActions } from "@/components/rank/BadgeAwardActions";
@@ -65,21 +67,35 @@ export default async function TeacherStudentDetailPage({
   const student = await db.user.findUnique({ where: { id: studentId } });
   if (!student || student.role !== "STUDENT") redirect("/teacher/students");
 
-  const [metrics, activity, recordings, profile, joinDate, allAttendance, examCounts, rankStatus, badgeShelf, topicRows, doubts, examRecordsForTrend] =
-    await Promise.all([
-      getStudentMetrics(studentId),
-      getStudentActivity(studentId),
-      getRecordingsForStudent(session.user.id, studentId),
-      db.studentProfile.findUnique({ where: { userId: studentId } }),
-      getStudentJoinDate(studentId),
-      db.attendance.findMany({ where: { studentId } }), // all-time — reused for BOTH longest streak AND total-days-present
-      getExamCounts(studentId),
-      getStudentRankStatus(studentId),
-      getBadgeShelf(studentId),
-      getStudentTopicBreakdown(studentId),
-      getDoubtsForStudent(studentId),
-      db.examRecord.findMany({ where: { studentId }, select: { scorePercent: true, updatedAt: true } }),
-    ]);
+  const [
+    metrics,
+    activity,
+    recordings,
+    profile,
+    joinDate,
+    allAttendance,
+    examCounts,
+    rankStatus,
+    badgeShelf,
+    topicRows,
+    doubts,
+    examRecordsForTrend,
+    checkIns,
+  ] = await Promise.all([
+    getStudentMetrics(studentId),
+    getStudentActivity(studentId),
+    getRecordingsForStudent(session.user.id, studentId),
+    db.studentProfile.findUnique({ where: { userId: studentId } }),
+    getStudentJoinDate(studentId),
+    db.attendance.findMany({ where: { studentId } }), // all-time — reused for BOTH longest streak AND total-days-present
+    getExamCounts(studentId),
+    getStudentRankStatus(studentId),
+    getBadgeShelf(studentId),
+    getStudentTopicBreakdown(studentId),
+    getDoubtsForStudent(studentId),
+    db.examRecord.findMany({ where: { studentId }, select: { scorePercent: true, updatedAt: true } }),
+    getCheckInsForStudent(studentId),
+  ]);
 
   const longestStreak = computeLongestStreak(allAttendance);
   const totalDaysPresent = countDaysPresent(allAttendance);
@@ -256,6 +272,8 @@ export default async function TeacherStudentDetailPage({
         <div className="feed-title">Journal timeline</div>
         <JournalTimeline entries={journalEntries} />
       </Card>
+
+      <WellbeingHistoryCard checkIns={checkIns} />
 
       <Card className="feed-card" style={{ marginTop: 16, marginBottom: 16 }}>
         <div className="feed-title">Activity</div>

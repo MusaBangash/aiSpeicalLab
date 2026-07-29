@@ -4,10 +4,12 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { getStudentDashboard } from "@/lib/dashboard";
 import { checkAndAwardLoginBadges } from "@/lib/badges";
+import { getTodayCheckIn } from "@/lib/wellbeing";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/shell/Icon";
 import { ProgressRing } from "@/components/dashboard/ProgressRing";
+import { CheckInWidget } from "@/components/wellbeing/CheckInWidget";
 
 export default async function StudentDashboardPage() {
   const session = await auth();
@@ -20,11 +22,15 @@ export default async function StudentDashboardPage() {
     // deliberately swallowed — a badge-award bug must never block the dashboard
   }
 
-  const data = await getStudentDashboard(session.user.id);
+  const [data, todayCheckIn] = await Promise.all([
+    getStudentDashboard(session.user.id),
+    getTodayCheckIn(session.user.id),
+  ]);
 
   return (
     <div className="page-anim">
       <PageHeader title="Dashboard" />
+      <CheckInWidget initialMood={todayCheckIn?.mood ?? null} initialNote={todayCheckIn?.note ?? null} />
       <div className="hero-grid">
         <Card className="ring-card">
           <ProgressRing percent={data.progressPercent} />

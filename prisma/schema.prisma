@@ -87,6 +87,7 @@ model User {
   badgesAwarded               StudentBadge[]        @relation("StudentBadgeAwardedBy")
   starsReceived               Star[]                @relation("StarStudent")
   starsAwarded                Star[]                @relation("StarTeacher")
+  wellbeingCheckIns           WellbeingCheckIn[]
 }
 
 model PC {
@@ -791,4 +792,32 @@ model Star {
 
   @@index([studentId])
   @@index([classId])
+}
+
+enum Mood {
+  GREAT
+  GOOD
+  OKAY
+  LOW
+  STRUGGLING
+}
+
+// One row per student per day — a quick, optional self-report, separate
+// from JournalEntry (teacher-authored, academic/behavioural). Deliberately
+// simpler than JournalEntry: no audit trail, resubmitting the same day
+// UPDATES the row (a student correcting how they're feeling later that
+// day is the normal case) rather than JournalEntry's supersede/retract
+// machinery. Does not feed src/lib/rank.ts's points formula.
+model WellbeingCheckIn {
+  id        String   @id @default(cuid())
+  studentId String
+  student   User     @relation(fields: [studentId], references: [id])
+  date      DateTime @db.Date
+  mood      Mood
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, date])
+  @@index([studentId])
 }
