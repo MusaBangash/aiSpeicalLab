@@ -2125,6 +2125,85 @@ map → early-warning at-risk list → wellbeing check-in → unlockable
 profile customization → printable certificates → most-improved
 leaderboard → study-buddy pairing), all shipped 2026-07-28/2026-07-29.
 
+## Post-roadmap work — UI/UX pass, starting with the login page (2026-07-29)
+
+First concrete step of a broader UI/UX initiative — a code-level design
+audit (`docs/07-design-system.md`, additive spacing/radius/weight tokens
+in `tokens.css`/`dashboard.css`, zero page changes) was done first, then
+the user asked to start applying visual work with the login page.
+Three concept directions (split-screen hero, an upgraded version of
+the existing single-card layout, and a type-led editorial layout) were
+mocked up and compared before writing any real code — the user picked
+the upgraded single-card direction.
+
+**New `src/styles/login.css`**, imported in the root layout alongside
+the other 4 stylesheets — a genuinely new file rather than a new
+section in an existing one, matching the precedent that distinct flows
+get their own file (`exam.css` for exam-taking, `shell.css` for nav
+chrome) rather than everything living in `dashboard.css`. Scoped
+entirely to the auth route: the shared `.card`/`.field`/`.btn` classes
+(used everywhere else in the app) are untouched — the richer input
+focus ring is applied via a `.login-card .field input:focus` descendant
+selector, not by editing the global `.field input:focus` rule itself,
+so no other form in the app is affected.
+
+**Changes**: `(auth)/layout.tsx`'s inline-styled centering wrapper
+became a single `.auth-shell` class (adds a soft radial gold-tinted
+background glow); the pineapple mark gained a circular gradient badge
+behind it with a sway-plus-scale animation (`@keyframes login-sway` —
+respects the app's existing global `prefers-reduced-motion` rule in
+`globals.css`, no extra guard needed); and a new footer line below the
+Sign In button reads "Aisha Cahn College of Computer Science and
+Design Technology" — confirmed verbatim with the user, not guessed.
+`.logo-mark`/`.logo-name`/`.logo-sub` (shared with the sidebar's own
+logo in `AppShell.tsx`) — the login page stopped using `.logo-mark`/
+`.logo-name` (styling its own markup instead, via `.login-crown`/
+`.login-brand`) but **does still reuse `.logo-sub` unmodified** for the
+small tracked "AI Lab System" caption, a deliberate safe reuse (reading
+an existing class, not editing it) rather than duplicating that rule.
+
+**Two rounds of live feedback, both addressed before committing**: the
+sway animation was confirmed present in the actual served CSS bundle
+but too subtle to notice at ±3°/4s — strengthened to ±8° with a slight
+scale pulse over a faster 3s cycle. The wordmark went from a single
+flat-colored "Ananas AI Lab System" line (a first pass that turned out
+to read as *less* distinctive than the original split-color version)
+to a two-tier treatment: "Ananas" alone in the gold accent color as
+its own line, with "AI Lab System" beneath it in the existing small
+tracked-caps style — closer to the original hierarchy, just without
+the awkward mid-word "Anan"/"as" split the original had.
+
+**Browser tab followed the same rebrand**: the root `<title>` (root
+`layout.tsx`'s `metadata` — the only place a page title is set anywhere
+in this app, no per-page titles exist) changed from the leftover
+"STLab — AI Engineering Lab" to "Ananas — AI Lab System" (one line —
+browser tabs can't render the two-line "Ananas" / "AI Lab System"
+split used on the login card itself). **The app had no favicon at
+all before this** — a genuine pre-existing gap found while checking,
+not something previously removed. Fixed via Next.js's `app/icon.svg`
+file convention (a static SVG dropped in `src/app/`, auto-served and
+auto-linked with zero metadata config needed) using the exact same
+pineapple-mark path data as `PineLogo.tsx`, so the browser tab now
+carries the same mark as the rest of the app rather than a generic
+blank icon.
+
+Live-verified via curl against the real running dev server (restarted
+twice during this round — once for the CSS import, once because
+`app/icon.svg` is a convention-based file Next.js needs a fresh start
+to pick up) that `/login` renders 200 with the final markup/text
+(`login-crown`/`auth-shell`/`login-inst` classes present, "Ananas"/
+"AI Lab System" render as separate elements, the institution string
+appears, the strengthened `rotate(-8deg)` keyframe is present in the
+served CSS bundle), the page's `<title>` reads exactly "Ananas — AI Lab
+System", and `/icon.svg` 200s with the correct `<link rel="icon">`
+wired into the page head automatically + `tsc --noEmit` +
+`npm run test:unit` staying green throughout every round (this work
+touches no logic, so the DB-backed integration suite wasn't re-run).
+**Visual polish itself (does the animation feel right, does the
+gradient read well) still needs a real browser** — no screenshot tool
+is available in this environment, consistent with every prior
+visual-only round in this project's history.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.

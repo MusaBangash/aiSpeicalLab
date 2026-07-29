@@ -8,8 +8,9 @@ import "@/styles/shell.css";
 import "@/styles/dashboard.css";
 import "@/styles/exam.css";
 import "@/styles/print.css";
+import "@/styles/login.css";
 
-export const metadata = { title: "STLab — AI Engineering Lab" };
+export const metadata = { title: "Ananas — AI Lab System" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

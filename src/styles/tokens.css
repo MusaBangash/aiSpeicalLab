@@ -25,4 +25,47 @@
   /* dashboard mockup's value chosen as canonical (exam_ui.html uses a slightly
      stronger 0 10px 34px / .14 for its own bigger cards; not worth a second token) */
   --shadow-lg: 0 8px 30px rgba(185, 123, 12, 0.12);
+
+  /* ---- Design system additions (docs/07-design-system.md) ----
+     Added 2026-07-29 during a design audit. These are new, additive
+     tokens — nothing below renames or removes an existing value, and
+     nothing in the app consumes these yet. They exist so future
+     work has a shared scale to reach for instead of picking a new
+     ad-hoc pixel value each time. See the doc for full rationale. */
+
+  /* Spacing scale — an 8px-based progression. Existing inline styles
+     (hundreds of ad-hoc px values across the app) are NOT being
+     retrofitted in this pass; new code should prefer these. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* Radius scale — names the values .card/.chip/nav-item already use
+     rather than inventing new ones (verified against globals.css/
+     shell.css before choosing these numbers). */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
+
+  /* Semantic "weight" colors for the generic feed-item container —
+     reuses the existing coral/gold palette, no new colors invented. */
+  --weight-urgent-border: var(--coral);
+  --weight-urgent-bg: var(--coral-soft);
+  --weight-important-border: var(--gold);
+  --weight-important-bg: var(--gold-soft);
 }
+
+/* Canonical breakpoints — CSS custom properties cannot be used inside
+   @media conditions, so this is a documented reference, not a working
+   token. Current usage is inconsistent (560px/980px in dashboard.css,
+   840px in shell.css, 800px in exam.css) — new @media rules should pick
+   from this set; exam.css's 800px is a known one-off, left as-is until
+   that file is next touched.
+   --bp-mobile: 560px  (content reflow: grids collapse to 1 column)
+   --bp-nav:    840px  (sidebar nav swaps to MobileNav)
+   --bp-tablet: 980px  (wider grids collapse, e.g. hero-grid) */

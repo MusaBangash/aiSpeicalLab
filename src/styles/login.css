@@ -1,0 +1,73 @@
+/* ---- Login (auth) ---- */
+/* Direction "B — single card, alive", chosen after comparing 3 concepts
+   during a UI/UX audit (2026-07-29). Scoped entirely to the auth route —
+   .card/.field/.btn stay untouched so no other page in the app is
+   affected. */
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: radial-gradient(60% 50% at 50% 0%, var(--gold-mist), transparent 70%), var(--cream);
+}
+
+.login-card {
+  width: 380px;
+  max-width: 100%;
+  padding: 34px;
+}
+
+.login-logo-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 26px;
+}
+
+.login-crown {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 35% 30%, var(--gold-mist), var(--gold-soft) 70%);
+  margin-bottom: 12px;
+  animation: login-sway 3s ease-in-out infinite;
+}
+.login-crown svg {
+  width: 32px;
+  height: 32px;
+}
+@keyframes login-sway {
+  0%, 100% { transform: rotate(-8deg) scale(1); }
+  50% { transform: rotate(8deg) scale(1.06); }
+}
+
+.login-brand {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-align: center;
+  color: var(--gold-deep);
+}
+
+/* Richer focus ring, scoped to the login form only via descendant
+   selector — the shared global .field input:focus (globals.css) is
+   untouched, so every other form in the app keeps its existing focus
+   style. */
+.login-card .field input:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-soft);
+}
+
+.login-inst {
+  text-align: center;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}

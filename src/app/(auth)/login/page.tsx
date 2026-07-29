@@ -7,15 +7,16 @@ import { LoginForm } from "@/components/auth/LoginForm";
 
 export default function LoginPage() {
   return (
-    <div className="card" style={{ width: 380, maxWidth: "100%", padding: 34 }}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 26 }}>
-        <PineLogo className="logo-mark" />
-        <div style={{ fontSize: 18, fontWeight: 800, marginTop: 10 }}>
-          Anan<em style={{ fontStyle: "normal", color: "var(--gold-deep)" }}>as</em>
+    <div className="card login-card">
+      <div className="login-logo-row">
+        <div className="login-crown">
+          <PineLogo />
         </div>
+        <div className="login-brand">Ananas</div>
         <div className="logo-sub">AI Lab System</div>
       </div>
       <LoginForm />
+      <div className="login-inst">Aisha Cahn College of Computer Science and Design Technology</div>
     </div>
   );
 }

@@ -201,6 +201,22 @@
 .feed-item:last-child {
   border-bottom: none;
 }
+/* Weight variants (docs/07-design-system.md) — opt-in modifiers, added
+   2026-07-29. No existing .feed-item caller passes these yet; adopt
+   per-component when that component's content genuinely warrants
+   standing out (an urgent message, not a routine activity-log line). */
+.feed-item.weight-urgent,
+.feed-item.weight-important {
+  padding-left: var(--space-3);
+  border-radius: var(--radius-sm);
+}
+.feed-item.weight-urgent {
+  border-left: 3px solid var(--weight-urgent-border);
+  background: var(--weight-urgent-bg);
+}
+.feed-item.weight-important {
+  border-left: 3px solid var(--weight-important-border);
+}
 .feed-dot {
   width: 32px;
   height: 32px;
