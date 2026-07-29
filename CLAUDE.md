@@ -2035,6 +2035,96 @@ old), so no seeded student actually has history spanning both windows
 yet. No test data was created in the dev database during verification —
 only the integration test's own fixtures were created and cleaned up.
 
+## Post-roadmap work — study-buddy pairing (2026-07-29)
+
+Seventh and final feature of the agreed 7-feature sequence started with
+the class topic mastery map: teacher-facing suggestions on
+`/teacher/classes/[classId]` pairing a struggling student with the
+classmate strongest on that exact topic. Two design forks resolved via
+`AskUserQuestion`: **per-class scope** (not lab-wide — a study partner
+needs to actually be in the same class, matching the Stars/
+bulk-attendance precedent rather than the leaderboard/at-risk-list
+one) and **one-directional tutor matching** (not mutual complementary
+pairs — for each struggling student, suggest the single classmate
+scoring highest on their exact weak topic; simpler, always finds a
+partner if one exists, and the teacher can read several such entries to
+assemble an actual study group). Deliberately **suggestion-only** — no
+automated matching, no notification sent to either student, no new
+model — matching the original brainstorm's scope
+("teacher-facing suggestions only for a first version").
+
+**Needed a genuinely new data shape, found via a real refactor, not a
+reuse.** `getWeakestTopicByStudent` (`src/lib/exam.ts`, added in the
+at-risk-list round) already built exactly the right internal tally — a
+`Map<studentId, Map<moduleId, {correct,total}>>` — but discarded it,
+returning only each student's single weakest topic via
+`pickWeakestTopic`. Extracted the shared body into a private
+`computeTopicBreakdownByStudent(studentIds)` returning the full
+per-student `TopicBreakdownRow[]` (moduleId included, critical for
+matching two students on the *same* topic — `pickWeakestTopic`'s return
+shape drops moduleId, keeping only title+percent, so pairing logic
+couldn't have been built on top of it directly). `getWeakestTopicByStudent`
+became a one-line wrapper (`pickWeakestTopic` applied per student);
+new `getTopicBreakdownByStudent` returns the full map directly.
+**Zero behavior change** — confirmed by the pre-existing
+`atrisk.getAtRiskStudents.test.ts` test covering
+`getWeakestTopicByStudent` passing completely unmodified after the
+refactor. `MIN_TOPIC_SAMPLE_SIZE` (`src/lib/dna.ts`, previously
+private) was exported so the new matching logic reuses the exact same
+answered-question floor on both sides of a pairing (a struggling
+student's weak topic AND the candidate partner's score on it each need
+≥3 answers) rather than re-declaring the literal `3` a second time.
+
+**No import-cycle risk, same discipline as `atrisk.ts`**: the new
+`src/lib/studybuddy.ts` needs `getTopicBreakdownByStudent` (`exam.ts`)
+and the `RosterEntry` type (`classes.ts`) — neither of those files
+imports back from it, so it's leaf-only; nothing else in `src/lib/`
+imports from `studybuddy.ts`, only the class detail page does.
+**No duplicate roster fetch**: `getStudyBuddySuggestions(roster)` takes
+the class page's already-fetched `RosterEntry[]` directly (the same
+array already passed into `getClassTopicBreakdown` as
+`roster.map(r => r.studentId)`) instead of re-querying it itself —
+avoiding the exact kind of duplicate fetch the DNA-summary round
+already fixed once for `TopicBreakdown`.
+
+A qualifying weak topic with no classmate who also clears the sample
+floor on that exact topic, or a student whose own history never clears
+the floor at all, are both simply **omitted** from the list — never
+padded with a low-confidence guess. An already-strong student (their
+own weakest topic still scores highest in their own roster) naturally
+produces zero suggestions for themselves, with no special-case code
+needed: the matching loop only accepts a partner scoring *higher* than
+the weak student's own percentage. `StudyBuddyCard.tsx` (new) reuses
+`.feed-item`/`.feed-title`/`.feed-empty` and the `people` icon
+(no new CSS, no new icon) — no `Link` wrapper per row, unlike
+`AtRiskStudentsCard`/`MostImprovedCard`, since both named students are
+already visible on the same class page's roster below.
+
+Live-verified end-to-end via `npm test` (112 tests, 27 files — 2 new,
+confirming: a struggling student is correctly matched to the classmate
+scoring highest on their exact weak topic with correct names/
+percentages; a student whose only answers fall below the 3-question
+floor is excluded; a student whose weak topic has no other qualifying
+classmate is excluded even though their own history clears the floor;
+a roster under 2 students returns `[]` with no query — plus the
+pre-existing `getWeakestTopicByStudent` test passing completely
+unmodified, proving the `exam.ts` extraction didn't change its
+behavior) + `tsc --noEmit` + curl against the real running dev server
+logged in as the real seeded teacher (`bangash@stlab.local`): the
+"Morning Batch B" class page rendered "Study buddy suggestions"
+directly below "Class topic mastery," correctly showing the empty
+state — confirmed correct, not a bug, after checking the real dev DB
+directly and finding only one student (Ahmad Ali) actively enrolled in
+any class lab-wide, so no class roster has the ≥2 students a pairing
+requires yet. No test data was created in the dev database during
+verification — only the integration test's own fixtures were created
+and cleaned up.
+
+This closes out the confirmed 7-feature sequence (class topic mastery
+map → early-warning at-risk list → wellbeing check-in → unlockable
+profile customization → printable certificates → most-improved
+leaderboard → study-buddy pairing), all shipped 2026-07-28/2026-07-29.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.

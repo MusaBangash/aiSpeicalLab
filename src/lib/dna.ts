@@ -28,7 +28,7 @@ export type WeakestTopic = { moduleTitle: string; percentCorrect: number } | nul
 
 /** Minimum answered-question sample size before a topic counts as a real
  *  weak spot rather than noise from one or two questions. */
-const MIN_TOPIC_SAMPLE_SIZE = 3;
+export const MIN_TOPIC_SAMPLE_SIZE = 3;
 
 /** rows is already sorted weakest-first (getStudentTopicBreakdown's own
  *  contract) — just skip anything under the sample-size floor. */

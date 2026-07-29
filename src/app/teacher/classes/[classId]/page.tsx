@@ -6,12 +6,14 @@ import { getClassRoster, getEnrollableStudents } from "@/lib/classes";
 import { getClassActivity, toClassActivityPayload } from "@/lib/activity";
 import { getClassAttendanceRows, toDateParam } from "@/lib/attendance";
 import { getClassTopicBreakdown } from "@/lib/exam";
+import { getStudyBuddySuggestions } from "@/lib/studybuddy";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { ClassRosterClient } from "@/components/classes/ClassRosterClient";
 import { ClassScheduleForm } from "@/components/classes/ClassScheduleForm";
 import { ClassLivePanel } from "@/components/classes/ClassLivePanel";
 import { ClassAttendanceSection } from "@/components/classes/ClassAttendanceSection";
 import { ClassStarSection } from "@/components/classes/ClassStarSection";
+import { StudyBuddyCard } from "@/components/classes/StudyBuddyCard";
 import { TopicBreakdown } from "@/components/students/TopicBreakdown";
 
 export default async function TeacherClassDetailPage({
@@ -28,10 +30,11 @@ export default async function TeacherClassDetailPage({
 
   const [roster, enrollable] = await Promise.all([getClassRoster(classId), getEnrollableStudents(classId)]);
   const today = new Date();
-  const [activity, attendanceRows, classTopicRows] = await Promise.all([
+  const [activity, attendanceRows, classTopicRows, studyBuddySuggestions] = await Promise.all([
     getClassActivity(roster.map((r) => r.studentId)),
     getClassAttendanceRows(classId, today),
     getClassTopicBreakdown(roster.map((r) => r.studentId)),
+    getStudyBuddySuggestions(roster),
   ]);
 
   return (
@@ -47,6 +50,7 @@ export default async function TeacherClassDetailPage({
         title="Class topic mastery"
         emptyMessage="No exam attempts from this class yet."
       />
+      <StudyBuddyCard suggestions={studyBuddySuggestions} />
       <h2>Give stars</h2>
       <ClassStarSection classId={classId} roster={roster} />
       <ClassRosterClient classId={classId} roster={roster} enrollable={enrollable} />

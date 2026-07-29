@@ -341,13 +341,14 @@ export async function getClassTopicBreakdown(studentIds: string[]): Promise<Topi
   return computeTopicBreakdown(studentIds);
 }
 
-/** Per-student weakest topic across a whole roster, batched (one ~5-query
- *  set regardless of student count, same batching discipline as
- *  computeTopicBreakdown) but grouped BY student rather than collapsed
- *  across them — the distinction getClassTopicBreakdown deliberately
- *  doesn't make. Reuses pickWeakestTopic's sample-size floor (src/lib/dna.ts). */
-export async function getWeakestTopicByStudent(studentIds: string[]): Promise<Map<string, WeakestTopic>> {
-  const result = new Map<string, WeakestTopic>(studentIds.map((id) => [id, null]));
+/** Per-student topic breakdown across a roster, batched (one ~5-query
+ *  set regardless of student count) but grouped BY student rather than
+ *  collapsed — the distinction getClassTopicBreakdown deliberately
+ *  doesn't make. Shared by getWeakestTopicByStudent (picks just the
+ *  weakest row) and getStudyBuddySuggestions (needs the full rows to
+ *  match a weak topic against a classmate's strong score on it). */
+async function computeTopicBreakdownByStudent(studentIds: string[]): Promise<Map<string, TopicBreakdownRow[]>> {
+  const result = new Map<string, TopicBreakdownRow[]>(studentIds.map((id) => [id, []]));
   if (studentIds.length === 0) return result;
 
   const attempts = await db.examAttempt.findMany({
@@ -403,10 +404,24 @@ export async function getWeakestTopicByStudent(studentIds: string[]): Promise<Ma
         percentCorrect: Math.round((100 * correct) / total),
       }))
       .sort((a, b) => a.percentCorrect - b.percentCorrect);
-    result.set(studentId, pickWeakestTopic(rows));
+    result.set(studentId, rows);
   }
 
   return result;
+}
+
+/** Per-student weakest topic across a whole roster. Reuses
+ *  pickWeakestTopic's sample-size floor (src/lib/dna.ts). */
+export async function getWeakestTopicByStudent(studentIds: string[]): Promise<Map<string, WeakestTopic>> {
+  const byStudent = await computeTopicBreakdownByStudent(studentIds);
+  return new Map([...byStudent].map(([id, rows]) => [id, pickWeakestTopic(rows)]));
+}
+
+/** Full per-student topic breakdown (not just the weakest) — needed by
+ *  study-buddy matching to find a classmate's score on the SAME topic
+ *  a struggling student is weak in. */
+export async function getTopicBreakdownByStudent(studentIds: string[]): Promise<Map<string, TopicBreakdownRow[]>> {
+  return computeTopicBreakdownByStudent(studentIds);
 }
 
 /**
