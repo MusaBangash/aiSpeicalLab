@@ -23,6 +23,18 @@ export const RANK_LADDER: RankLadderEntry[] = [
   { rank: "Master Engineer", minTenureMonths: 24, minPoints: 400, extraGateLabel: "Teacher nomination" },
 ];
 
+/** Avatar-ring color per rank tier — purely cosmetic, escalates
+ *  green (early tiers) into gold (achievement tiers), reusing existing
+ *  CSS tokens only. */
+export const RANK_AVATAR_RING: Record<RankName, string> = {
+  Recruit: "var(--muted)",
+  Apprentice: "var(--leaf-soft)",
+  Builder: "var(--leaf)",
+  Engineer: "var(--gold-soft)",
+  Architect: "var(--gold)",
+  "Master Engineer": "var(--gold-deep)",
+};
+
 /** Full calendar months elapsed since joinDate, floored, never negative.
  *  Local-getters-are-authoritative, same convention as startOfDay/isWeekend
  *  (docs/05-implementation-notes.md) — no UTC conversion. */

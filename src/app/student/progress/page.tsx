@@ -19,6 +19,7 @@ import { ExamScoreTrend } from "@/components/students/ExamScoreTrend";
 import { TopicBreakdown } from "@/components/students/TopicBreakdown";
 import { DnaSummaryCard, type DnaHighlight } from "@/components/students/DnaSummaryCard";
 import { RecentDoubtsCard } from "@/components/doubts/RecentDoubtsCard";
+import { RankAvatar } from "@/components/students/RankAvatar";
 
 const CATEGORY_LABELS: Record<string, string> = {
   PARTICIPATION: "Participation",
@@ -105,7 +106,10 @@ export default async function StudentProgressPage() {
       </div>
 
       <Card className="feed-card" style={{ marginTop: 16, marginBottom: 16 }}>
-        <div className="feed-title">Rank &amp; Badges</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <RankAvatar name={session.user.name ?? ""} rank={rankStatus.rank.currentRank} />
+          <div className="feed-title" style={{ marginBottom: 0 }}>Rank &amp; Badges</div>
+        </div>
         <RankLadderCard status={rankStatus} />
         <BadgeShelf badges={badgeShelf} />
       </Card>

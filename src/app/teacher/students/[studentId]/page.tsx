@@ -16,6 +16,7 @@ import { getCheckInsForStudent } from "@/lib/wellbeing";
 import { DnaSummaryCard, type DnaHighlight } from "@/components/students/DnaSummaryCard";
 import { RecentDoubtsCard } from "@/components/doubts/RecentDoubtsCard";
 import { WellbeingHistoryCard } from "@/components/wellbeing/WellbeingHistoryCard";
+import { RankAvatar } from "@/components/students/RankAvatar";
 import { RankLadderCard } from "@/components/rank/RankLadderCard";
 import { BadgeShelf } from "@/components/rank/BadgeShelf";
 import { BadgeAwardActions } from "@/components/rank/BadgeAwardActions";
@@ -217,7 +218,10 @@ export default async function TeacherStudentDetailPage({
       />
 
       <Card className="feed-card" style={{ marginTop: 16, marginBottom: 16 }}>
-        <div className="feed-title">Rank &amp; Badges</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <RankAvatar name={student.name} rank={rankStatus.rank.currentRank} />
+          <div className="feed-title" style={{ marginBottom: 0 }}>Rank &amp; Badges</div>
+        </div>
         <RankLadderCard status={rankStatus} />
         <BadgeShelf badges={badgeShelf} />
         <BadgeAwardActions

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { tenureMonthsSince, computeRank } from "./rank";
+import { tenureMonthsSince, computeRank, RANK_LADDER, RANK_AVATAR_RING } from "./rank";
 
 describe("tenureMonthsSince", () => {
   test("null joinDate -> 0 months", () => {
@@ -55,5 +55,13 @@ describe("computeRank", () => {
   test("one point below a threshold stays at the lower rank", () => {
     const result = computeRank({ tenureMonths: 3, points: 39, hasProjectCompleteBadge: false, hasMasterEngineerNomination: false });
     expect(result.currentRank).toBe("Recruit");
+  });
+});
+
+describe("RANK_AVATAR_RING", () => {
+  test("has a color entry for every rank in the ladder — no tier silently renders undefined", () => {
+    for (const entry of RANK_LADDER) {
+      expect(RANK_AVATAR_RING[entry.rank]).toBeTruthy();
+    }
   });
 });

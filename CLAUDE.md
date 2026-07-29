@@ -1853,6 +1853,57 @@ today, 29 Jul 2026" in the new Wellbeing card in the correct position.
 The one real check-in row created during manual verification was
 deleted afterward.
 
+## Post-roadmap work — unlockable profile customization (2026-07-29)
+
+Fourth of the agreed 7-feature sequence, and the smallest so far: a
+colored ring around a student's avatar that escalates as they climb the
+existing 6-tier rank ladder (`src/lib/rank.ts`) — no new database
+field, no picker/selection UI, purely derived from the already-computed
+`rankStatus.rank.currentRank`.
+
+**A real placement tradeoff was surfaced and resolved with the user
+before writing any code, not discovered afterward**: neither page that
+already computes rank (`/student/progress`, the teacher's per-student
+profile page) renders an avatar at all today — only `AppShell.tsx`'s
+nav header does, and that renders on *every* page navigation for both
+roles. Tinting the nav header would mean running `getStudentRankStatus`
+(confirmed: ~7 DB round-trips via `getPointsBreakdown`'s 5 parallel
+queries plus 2 more) on every single student page load, purely to color
+an avatar ring. Resolved via `AskUserQuestion`: add a **new** avatar to
+the two pages that already fetch rank instead, at zero additional query
+cost, rather than pay that cost globally for a purely cosmetic feature.
+
+New `RANK_AVATAR_RING` (`src/lib/rank.ts`) maps each of the 6 rank names
+to a color, escalating green (`--muted` → `--leaf-soft` → `--leaf`) into
+gold (`--gold-soft` → `--gold` → `--gold-deep`) — reusing only existing
+CSS tokens already confirmed real in `src/styles/tokens.css`, matching
+this app's established "gold = achievement" convention rather than
+inventing new ones. New `RankAvatar.tsx` reuses the existing
+`.me-avatar` CSS class (so it still looks like every other avatar in
+the app) and adds the ring via inline `box-shadow` only — **the other 6
+existing `.me-avatar` render sites** (`AppShell`, `StudentsGridClient`,
+`ClassStarSection`, `ClassLivePanel`, `AttendanceOverrideRow`) don't
+import this new component and were confirmed live to render completely
+unchanged (no `box-shadow`, plain `class="me-avatar"`).
+
+Wired into both `/student/progress` and
+`/teacher/students/[studentId]`'s existing "Rank & Badges" card headers
+— `rankStatus` and the student's name were already in scope on both
+pages, so this needed zero new fetches anywhere.
+
+Live-verified end-to-end via `npm test` (108 tests, 24 files — 1 new
+completeness check confirming every `RANK_LADDER` entry has a
+corresponding `RANK_AVATAR_RING` color, guarding against a typo
+silently rendering `undefined` in a `box-shadow`) + `tsc --noEmit` +
+curl against the real running dev server: a real seeded student's own
+`/student/progress` page rendered their avatar ("AA") with a
+`var(--muted)` ring matching their genuine current rank (Recruit); the
+teacher's view of the same student's profile page rendered a
+byte-identical avatar and ring; the six pre-existing `.me-avatar` sites
+(spot-checked via `/teacher/students`) confirmed visually unchanged. No
+test data was created or needed cleanup — this feature is purely
+presentational, reading data that already existed.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.
