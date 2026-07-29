@@ -4,9 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { initials } from "@/lib/initials";
 import { Chip } from "@/components/ui/Chip";
-import type { StudentSummary } from "@/lib/metrics";
-
-const RISK_THRESHOLD_PERCENT = 60;
+import { RISK_THRESHOLD_PERCENT, type StudentSummary } from "@/lib/metrics";
 
 type SortBy = "name" | "examLow" | "attendanceLow";
 

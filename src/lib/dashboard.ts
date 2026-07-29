@@ -20,6 +20,27 @@ export async function getExamCounts(studentId: string): Promise<{ examsTaken: nu
   return { examsTaken, examsPassed };
 }
 
+/** Batched-by-student ExamRecord fetch for feeding computeScoreTrend
+ *  (src/lib/dna.ts) across many students in one query, instead of the
+ *  one-at-a-time db.examRecord.findMany calls every existing caller uses. */
+export async function getExamRecordsByStudent(
+  studentIds: string[]
+): Promise<Map<string, { scorePercent: number; updatedAt: Date }[]>> {
+  const result = new Map<string, { scorePercent: number; updatedAt: Date }[]>(
+    studentIds.map((id) => [id, []])
+  );
+  if (studentIds.length === 0) return result;
+
+  const records = await db.examRecord.findMany({
+    where: { studentId: { in: studentIds } },
+    select: { studentId: true, scorePercent: true, updatedAt: true },
+  });
+  for (const r of records) {
+    result.get(r.studentId)?.push({ scorePercent: r.scorePercent, updatedAt: r.updatedAt });
+  }
+  return result;
+}
+
 export type StudentDashboard = {
   progressPercent: number;
   streak: number;

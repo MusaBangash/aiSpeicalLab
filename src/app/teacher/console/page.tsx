@@ -9,19 +9,23 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { startOfDay } from "@/lib/attendance";
 import { getTeacherConsole } from "@/lib/dashboard";
+import { getAtRiskStudents } from "@/lib/atrisk";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/shell/Icon";
+import { AtRiskStudentsCard } from "@/components/students/AtRiskStudentsCard";
 
 export default async function TeacherConsolePage() {
   const session = await auth();
   if (!session || session.user.role !== "TEACHER") redirect("/login");
 
-  const data = await getTeacherConsole(startOfDay(new Date()));
+  const today = startOfDay(new Date());
+  const [data, atRiskStudents] = await Promise.all([getTeacherConsole(today), getAtRiskStudents(today)]);
 
   return (
     <div className="page-anim">
       <PageHeader title="Console" />
+      <AtRiskStudentsCard students={atRiskStudents} />
       <div className="hero-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
         <Card className="mini-card">
           <div className="mini-top">

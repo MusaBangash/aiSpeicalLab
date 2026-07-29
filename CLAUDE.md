@@ -1689,6 +1689,106 @@ existing profile pages still render the unchanged default title. No
 test data was created or needed cleanup — this feature only reads
 already-existing exam-attempt data.
 
+## Post-roadmap work — early-warning at-risk list (2026-07-28)
+
+Second of the agreed 7-feature sequence. Teachers previously had to open
+`/teacher/students` and toggle an existing client-side "at risk" filter
+(`StudentsGridClient.tsx`, threshold `avgScorePercent < 60 ||
+attendancePercent < 60`, no trend or weakest-topic signal) to see who
+needed attention. New: a **proactive** "At-risk students" card at the
+top of `/teacher/console` — the post-login landing page, confirmed
+previously purely lab-wide aggregate counts with zero per-student
+content — combining attendance %, exam-score trend, and weakest topic,
+so a teacher sees it without going to look for it.
+
+**Deliberately reuses the existing risk trigger rather than inventing a
+second one**: `RISK_THRESHOLD_PERCENT` was a local const inside
+`StudentsGridClient.tsx` — extracted to `src/lib/metrics.ts` (next to
+`getAllStudentsSummary`/`StudentSummary`, its natural home) as the one
+shared source of truth, imported by both the existing toggle (zero
+behavior change, confirmed live) and the new list. The new signals
+(trend, weakest topic) only ever *add context* to help a teacher act on
+an already-established definition of "at risk" — they don't change who
+qualifies.
+
+**Two real design risks were found and designed around before writing
+any code, not discovered afterward**:
+
+1. **A real N+1 risk.** `getStudentTopicBreakdown`'s shared
+   `computeTopicBreakdown` helper (added last round for the class topic
+   mastery feature) already batches many students into one ~5-query
+   set — but it *collapses* them into one combined tally, which is
+   `getClassTopicBreakdown`'s whole point. Calling the per-student
+   function once per at-risk student would re-run that same batch N
+   times. Fixed with a genuinely new `getWeakestTopicByStudent`
+   (`src/lib/exam.ts`) that keeps the batching but tallies into a
+   *nested* Map keyed by student — the same relationship
+   `getClassActivity` already has to `getStudentActivity`, just a third
+   variant of the pattern. It additionally traces each answer back to
+   its student via `attemptId` (added to a `select`, which the
+   collapsing helper never needed), so it's a genuinely different
+   aggregation, not a parameterization of the existing one — kept as
+   its own function rather than forcing `computeTopicBreakdown` to
+   support both shapes.
+2. **A real import-cycle risk.** `exam.ts` already imports `badges.ts`
+   (for `checkAndAwardExamBadges`), and `badges.ts` already imports
+   `metrics.ts` (for `getStudentMetrics`). Putting the new
+   at-risk-composition logic in either `metrics.ts` or `dashboard.ts` —
+   both natural-seeming homes — and having it import the new
+   weakest-topic-by-student helper from `exam.ts` would have completed
+   a cycle (`metrics.ts`/`dashboard.ts` → `exam.ts` → `badges.ts` →
+   `metrics.ts`). Fixed by putting the composition in a **new,
+   leaf-only file**, `src/lib/atrisk.ts`, that nothing else in `src/lib/`
+   ever imports from — only the console page does — so it can safely
+   depend on `metrics.ts`, `dashboard.ts`, and `exam.ts` without ever
+   completing a cycle. Same "compose at the top, keep lower modules
+   independent" role `dna.ts` already plays. (Separately, `exam.ts`
+   importing a value from `dna.ts` — which itself already imports a
+   *type* from `exam.ts` — was confirmed safe, since a TypeScript
+   `import type` is erased at compile time and creates no runtime
+   circular `require`.)
+
+Also cost-conscious by construction: `getAtRiskStudents()` first
+resolves who qualifies from the already-existing `getAllStudentsSummary`
+data (2 queries per student, an existing, tolerated pattern at this
+app's scale — not something this round touched or optimized, out of
+scope), then only runs the new batched trend/topic queries against
+*that* subset — a lab where nobody currently qualifies never touches
+the more expensive queries at all.
+
+`AtRiskStudentsCard.tsx` reuses `.feed-item`/`.feed-title`/`.feed-s`/
+`.feed-empty` (same convention as `RecentDoubtsCard`/the notifications
+page) and the existing `Chip variant="coral"` "At risk" styling and
+`target` icon — zero new CSS, zero new icon.
+
+**A real test bug was caught and fixed during verification, not shipped
+blind**: the first test draft dated attendance fixtures to a different
+calendar month than the `today` value passed into
+`getAtRiskStudents(today)` (mirroring an earlier test's now-inapplicable
+fixed-date convention) — `getTermAttendancePercent` scopes strictly to
+`today`'s own calendar month, so the fixture rows were silently invisible
+to the function under test and a "fully present" student came back
+"39% attendance" instead. Fixed by dating every attendance fixture
+within the same month as the explicit `today` argument, and — a second,
+related bug — covering **every** day from the 1st through `today`'s date
+rather than an arbitrary handful, since any weekday with no row at all
+is counted as absent, not skipped.
+
+Live-verified end-to-end via `npm test` (105 tests, 23 files — 3 new,
+including the corrected date-alignment fixtures — confirming: an
+at-risk student is flagged with correct trend/weakest-topic while a
+genuinely healthy student never appears; two different at-risk
+students' weakest topics come back correctly distinct, not collapsed;
+and a lab with nobody at risk returns cleanly with no error) + `tsc
+--noEmit` + curl against the real running dev server logged in as the
+real seeded teacher: `/teacher/console` rendered a real "At-risk
+students" card above the existing stat grids — Ahmad Ali (25% avg, 62%
+attendance, weakest topic "Neural network basics" at 25%) and Ayesha
+Noor (0% avg, 52% attendance) both appeared correctly with working
+links to their profiles; `/teacher/students`'s pre-existing "At risk"
+toggle still rendered correctly after the constant extraction. No test
+data required cleanup — this feature only reads already-existing data.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.

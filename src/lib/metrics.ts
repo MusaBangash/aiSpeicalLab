@@ -75,6 +75,12 @@ export async function getStudentMetrics(studentId: string, today: Date = new Dat
   return { avgScorePercent, attendancePercent, categoryAverages, entries };
 }
 
+/** Below this on either exam average or attendance, a student is
+ *  flagged "at risk" — shared by the /teacher/students toggle and the
+ *  console's proactive at-risk list, so the two surfaces can never
+ *  silently drift onto different thresholds. */
+export const RISK_THRESHOLD_PERCENT = 60;
+
 export type StudentSummary = {
   id: string;
   name: string;

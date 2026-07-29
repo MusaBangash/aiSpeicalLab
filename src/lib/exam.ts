@@ -6,6 +6,7 @@
 import type { AttemptStatus, ExamAttempt } from "@prisma/client";
 import { db } from "./db";
 import { checkAndAwardExamBadges } from "./badges";
+import { pickWeakestTopic, type WeakestTopic } from "./dna";
 
 export type StartBlock =
   | { blocked: false }
@@ -338,6 +339,74 @@ export async function getStudentTopicBreakdown(studentId: string): Promise<Topic
  *  getClassActivity (src/lib/activity.ts) relative to getStudentActivity. */
 export async function getClassTopicBreakdown(studentIds: string[]): Promise<TopicBreakdownRow[]> {
   return computeTopicBreakdown(studentIds);
+}
+
+/** Per-student weakest topic across a whole roster, batched (one ~5-query
+ *  set regardless of student count, same batching discipline as
+ *  computeTopicBreakdown) but grouped BY student rather than collapsed
+ *  across them — the distinction getClassTopicBreakdown deliberately
+ *  doesn't make. Reuses pickWeakestTopic's sample-size floor (src/lib/dna.ts). */
+export async function getWeakestTopicByStudent(studentIds: string[]): Promise<Map<string, WeakestTopic>> {
+  const result = new Map<string, WeakestTopic>(studentIds.map((id) => [id, null]));
+  if (studentIds.length === 0) return result;
+
+  const attempts = await db.examAttempt.findMany({
+    where: { studentId: { in: studentIds }, status: { in: ["SUBMITTED", "AUTO_SUBMITTED"] } },
+    select: { id: true, studentId: true, questionIds: true },
+  });
+  if (attempts.length === 0) return result;
+
+  const attemptToStudent = new Map(attempts.map((a) => [a.id, a.studentId]));
+  const allQuestionIds = [...new Set(attempts.flatMap((a) => questionIdsOf(a)))];
+
+  const questions = await db.question.findMany({
+    where: { id: { in: allQuestionIds } },
+    select: { id: true, moduleId: true, exam: { select: { moduleId: true } } },
+  });
+  const effectiveModuleByQuestion = new Map(questions.map((q) => [q.id, q.moduleId ?? q.exam.moduleId]));
+
+  const correctOptions = await db.questionOption.findMany({
+    where: { questionId: { in: allQuestionIds }, isCorrect: true },
+    select: { questionId: true, id: true },
+  });
+  const correctByQuestion = new Map(correctOptions.map((o) => [o.questionId, o.id]));
+
+  const answers = await db.attemptAnswer.findMany({
+    where: { attemptId: { in: attempts.map((a) => a.id) }, optionId: { not: null } },
+    select: { attemptId: true, questionId: true, optionId: true },
+  });
+
+  const tally = new Map<string, Map<string, { correct: number; total: number }>>();
+  for (const a of answers) {
+    const studentId = attemptToStudent.get(a.attemptId);
+    const moduleId = effectiveModuleByQuestion.get(a.questionId);
+    if (!studentId || !moduleId) continue;
+    const studentTally = tally.get(studentId) ?? new Map();
+    const row = studentTally.get(moduleId) ?? { correct: 0, total: 0 };
+    row.total += 1;
+    if (a.optionId === correctByQuestion.get(a.questionId)) row.correct += 1;
+    studentTally.set(moduleId, row);
+    tally.set(studentId, studentTally);
+  }
+
+  const allModuleIds = [...new Set([...tally.values()].flatMap((m) => [...m.keys()]))];
+  const modules = await db.curriculumModule.findMany({ where: { id: { in: allModuleIds } } });
+  const titleById = new Map(modules.map((m) => [m.id, m.title]));
+
+  for (const [studentId, studentTally] of tally) {
+    const rows: TopicBreakdownRow[] = [...studentTally.entries()]
+      .map(([moduleId, { correct, total }]) => ({
+        moduleId,
+        moduleTitle: titleById.get(moduleId) ?? "Unknown module",
+        correctCount: correct,
+        totalCount: total,
+        percentCorrect: Math.round((100 * correct) / total),
+      }))
+      .sort((a, b) => a.percentCorrect - b.percentCorrect);
+    result.set(studentId, pickWeakestTopic(rows));
+  }
+
+  return result;
 }
 
 /**
