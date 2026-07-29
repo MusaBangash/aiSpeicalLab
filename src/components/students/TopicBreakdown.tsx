@@ -12,7 +12,7 @@ export function TopicBreakdown({
 }) {
   if (rows.length === 0) {
     return (
-      <Card className="feed-card">
+      <Card className="feed-card" style={{ marginBottom: "var(--space-6)" }}>
         <div className="feed-title">{title}</div>
         <div className="feed-empty">{emptyMessage}</div>
       </Card>
@@ -20,7 +20,7 @@ export function TopicBreakdown({
   }
 
   return (
-    <Card className="feed-card">
+    <Card className="feed-card" style={{ marginBottom: "var(--space-6)" }}>
       <div className="feed-title">{title}</div>
       {rows.map((r) => (
         <div key={r.moduleId} style={{ marginBottom: 14 }}>

@@ -8,7 +8,7 @@ export function MostImprovedCard({ students }: { students: MostImprovedRow[] }) 
 
   if (top.length === 0) {
     return (
-      <Card className="feed-card" style={{ marginBottom: 16 }}>
+      <Card className="feed-card" style={{ marginBottom: "var(--space-6)" }}>
         <div className="feed-title">Most improved (last 30 days)</div>
         <div className="feed-empty">Not enough exam history yet to measure improvement.</div>
       </Card>
@@ -16,7 +16,7 @@ export function MostImprovedCard({ students }: { students: MostImprovedRow[] }) 
   }
 
   return (
-    <Card className="feed-card" style={{ marginBottom: 16 }}>
+    <Card className="feed-card" style={{ marginBottom: "var(--space-6)" }}>
       <div className="feed-title">Most improved (last 30 days)</div>
       {top.map((s, i) => (
         <Link

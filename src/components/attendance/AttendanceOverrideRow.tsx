@@ -22,6 +22,7 @@ export function AttendanceOverrideRow({
   initialNote,
   initialSource,
   initialCheckedInAt,
+  studentClassName,
 }: {
   studentId: string;
   studentName: string;
@@ -30,6 +31,7 @@ export function AttendanceOverrideRow({
   initialNote: string | null;
   initialSource: Source | null;
   initialCheckedInAt: string | null;
+  studentClassName?: string | null;
 }) {
   const [status, setStatus] = useState<Status | "UNMARKED">(initialStatus ?? "UNMARKED");
   const [note, setNote] = useState(initialNote ?? "");
@@ -61,6 +63,7 @@ export function AttendanceOverrideRow({
         <span className="status-dot" style={STATUS_DOT_STYLE[status]} />
       </div>
       <div className="mod-title">{studentName}</div>
+      {studentClassName ? <div className="mod-desc">{studentClassName}</div> : null}
       <div className="att-day-card-controls">
         <select value={status} onChange={(e) => save(e.target.value as Status)} disabled={saving}>
           <option value="UNMARKED" disabled>

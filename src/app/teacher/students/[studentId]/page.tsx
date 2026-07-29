@@ -13,6 +13,8 @@ import { getStudentTopicBreakdown } from "@/lib/exam";
 import { getDoubtsForStudent } from "@/lib/doubts";
 import { computeScoreTrend, pickWeakestTopic, countDoubtsOnTopicThisTerm, generateDnaSummary } from "@/lib/dna";
 import { getCheckInsForStudent } from "@/lib/wellbeing";
+import { getStarsForStudent } from "@/lib/stars";
+import { StarHistoryCard } from "@/components/students/StarHistoryCard";
 import { DnaSummaryCard, type DnaHighlight } from "@/components/students/DnaSummaryCard";
 import { RecentDoubtsCard } from "@/components/doubts/RecentDoubtsCard";
 import { WellbeingHistoryCard } from "@/components/wellbeing/WellbeingHistoryCard";
@@ -82,6 +84,7 @@ export default async function TeacherStudentDetailPage({
     doubts,
     examRecordsForTrend,
     checkIns,
+    stars,
   ] = await Promise.all([
     getStudentMetrics(studentId),
     getStudentActivity(studentId),
@@ -96,6 +99,7 @@ export default async function TeacherStudentDetailPage({
     getDoubtsForStudent(studentId),
     db.examRecord.findMany({ where: { studentId }, select: { scorePercent: true, updatedAt: true } }),
     getCheckInsForStudent(studentId),
+    getStarsForStudent(studentId),
   ]);
 
   const longestStreak = computeLongestStreak(allAttendance);
@@ -231,6 +235,8 @@ export default async function TeacherStudentDetailPage({
           nominationEligible={rankStatus.tenureMonths >= 24 && rankStatus.points.total >= 400}
         />
       </Card>
+
+      <StarHistoryCard stars={stars} />
 
       {joinDate ? (
         <>

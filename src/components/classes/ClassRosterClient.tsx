@@ -44,7 +44,7 @@ export function ClassRosterClient({
 
   return (
     <div>
-      <div className="journal-entry-form" style={{ marginBottom: 16 }}>
+      <div className="journal-entry-form" style={{ marginBottom: "var(--space-5)" }}>
         <select value={selectedStudentId} onChange={(e) => setSelectedStudentId(e.target.value)} disabled={busy}>
           {enrollable.length === 0 ? (
             <option value="">No other students available</option>

@@ -3,6 +3,7 @@ import type { JournalCategory } from "@prisma/client";
 import { db } from "./db";
 import { getAvgExamScorePercent } from "./dashboard";
 import { getTermAttendancePercent } from "./attendance";
+import { getActiveClassByStudent } from "./classes";
 
 export const JOURNAL_CATEGORIES: JournalCategory[] = ["PARTICIPATION", "BEHAVIOUR", "EXTRA_ACTIVITY"];
 
@@ -87,10 +88,18 @@ export type StudentSummary = {
   email: string;
   avgScorePercent: number;
   attendancePercent: number;
+  className: string | null;
 };
 
 export async function getAllStudentsSummary(today: Date = new Date()): Promise<StudentSummary[]> {
-  const students = await db.user.findMany({ where: { role: "STUDENT" }, orderBy: { name: "asc" } });
+  // The existing per-student score/attendance calls below are a
+  // separately-tolerated N+1 pattern at this app's scale, not
+  // something this change touches.
+  const [students, classByStudent] = await Promise.all([
+    db.user.findMany({ where: { role: "STUDENT" }, orderBy: { name: "asc" } }),
+    getActiveClassByStudent(),
+  ]);
+
   return Promise.all(
     students.map(async (s) => ({
       id: s.id,
@@ -98,6 +107,7 @@ export async function getAllStudentsSummary(today: Date = new Date()): Promise<S
       email: s.email,
       avgScorePercent: await getAvgExamScorePercent(s.id),
       attendancePercent: await getTermAttendancePercent(s.id, today),
+      className: classByStudent.get(s.id)?.name ?? null,
     }))
   );
 }

@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { requireOwnedClass } from "@/lib/classes";
 import { awardStar } from "@/lib/stars";
 
-const bodySchema = z.object({ studentId: z.string().min(1) });
+const bodySchema = z.object({ studentId: z.string().min(1), reason: z.string().max(200).trim().optional() });
 
 export async function POST(req: Request, { params }: { params: Promise<{ classId: string }> }) {
   const session = await auth();
@@ -28,6 +28,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ classId
     return Response.json({ error: "Student not found" }, { status: 404 });
   }
 
-  await awardStar(parsed.data.studentId, session.user.id, classId);
+  await awardStar(parsed.data.studentId, session.user.id, classId, parsed.data.reason);
   return Response.json({ ok: true });
 }

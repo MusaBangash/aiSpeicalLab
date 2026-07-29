@@ -20,6 +20,8 @@ import { TopicBreakdown } from "@/components/students/TopicBreakdown";
 import { DnaSummaryCard, type DnaHighlight } from "@/components/students/DnaSummaryCard";
 import { RecentDoubtsCard } from "@/components/doubts/RecentDoubtsCard";
 import { RankAvatar } from "@/components/students/RankAvatar";
+import { getStarsForStudent } from "@/lib/stars";
+import { StarHistoryCard } from "@/components/students/StarHistoryCard";
 
 const CATEGORY_LABELS: Record<string, string> = {
   PARTICIPATION: "Participation",
@@ -31,7 +33,7 @@ export default async function StudentProgressPage() {
   const session = await auth();
   if (!session || session.user.role !== "STUDENT") redirect("/login");
 
-  const [metrics, rankStatus, badgeShelf, examCounts, topicRows, doubts, examRecordsForTrend, allAttendance] = await Promise.all([
+  const [metrics, rankStatus, badgeShelf, examCounts, topicRows, doubts, examRecordsForTrend, allAttendance, stars] = await Promise.all([
     getStudentMetrics(session.user.id),
     getStudentRankStatus(session.user.id),
     getBadgeShelf(session.user.id),
@@ -40,6 +42,7 @@ export default async function StudentProgressPage() {
     getDoubtsForStudent(session.user.id),
     db.examRecord.findMany({ where: { studentId: session.user.id }, select: { scorePercent: true, updatedAt: true } }),
     db.attendance.findMany({ where: { studentId: session.user.id } }),
+    getStarsForStudent(session.user.id),
   ]);
   const activeEntries = metrics.entries.filter((e) => e.status === "ACTIVE");
 
@@ -105,8 +108,8 @@ export default async function StudentProgressPage() {
         ))}
       </div>
 
-      <Card className="feed-card" style={{ marginTop: 16, marginBottom: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <Card className="feed-card" style={{ marginBottom: "var(--space-6)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
           <RankAvatar name={session.user.name ?? ""} rank={rankStatus.rank.currentRank} />
           <div className="feed-title" style={{ marginBottom: 0 }}>Rank &amp; Badges</div>
         </div>
@@ -114,10 +117,12 @@ export default async function StudentProgressPage() {
         <BadgeShelf badges={badgeShelf} certificateBaseHref="/student/certificate" />
       </Card>
 
+      <StarHistoryCard stars={stars} />
+
       <ExamScoreTrend studentId={session.user.id} />
       <TopicBreakdown rows={topicRows} />
 
-      <Card className="feed-card" style={{ marginTop: 16 }}>
+      <Card className="feed-card">
         <div className="feed-title">Entry history</div>
         {activeEntries.length === 0 ? (
           <div className="feed-empty">No entries yet.</div>

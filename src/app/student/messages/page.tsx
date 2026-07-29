@@ -16,11 +16,11 @@ export default async function StudentMessagesPage() {
     <div className="page-anim">
       <PageHeader title="Messages" />
       {inbox.length === 0 ? (
-        <div className="card" style={{ padding: 20 }}>
+        <div className="card" style={{ padding: "var(--space-5)" }}>
           No messages yet.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
           {inbox.map((m) => (
             <MessageCard key={m.id} message={m} />
           ))}

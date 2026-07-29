@@ -58,6 +58,20 @@
   --weight-urgent-bg: var(--coral-soft);
   --weight-important-border: var(--gold);
   --weight-important-bg: var(--gold-soft);
+
+  /* Type scale — added 2026-07-29 during a visual-quality pass. Real,
+     deliberate steps (not the ~11 different near-duplicate sizes —
+     27/25/24/19/15/13.5/13/12.5/12/10.5 — previously scattered across
+     dashboard.css/shell.css with no rationale for why any one value
+     was picked). Each step is a clear jump so a "section header" and
+     an "item title" are unmistakably different weights at a glance —
+     the actual fix for "no sections, everything looks the same." */
+  --text-2xl: 32px; /* big display numbers (mini-num) */
+  --text-xl: 26px;  /* page <h1> */
+  --text-lg: 16px;  /* section/card headers (feed-title) */
+  --text-md: 14px;  /* body / item titles (feed-t) */
+  --text-sm: 12px;  /* secondary / meta (mini-label, date) */
+  --text-xs: 11px;  /* micro captions (feed-s) */
 }
 
 /* Canonical breakpoints — CSS custom properties cannot be used inside

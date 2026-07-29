@@ -2204,6 +2204,111 @@ gradient read well) still needs a real browser** — no screenshot tool
 is available in this environment, consistent with every prior
 visual-only round in this project's history.
 
+## Post-roadmap work — classes-page tabs, star reasons, rank clarity (2026-07-29)
+
+Three concerns raised together as part of the UI/UX pass: the class
+detail page was disorganized (7 stacked sections, same mega-page
+problem the original audit flagged), Stars had no way to record why one
+was given, and the rank system's point formula was invisible in the UI
+(only existed as code comments). Two design forks resolved via
+`AskUserQuestion` before planning: keep the current rank names
+(Recruit → ... → Master Engineer) — the real ask was legibility, not a
+rename — and make the star reason **optional**, not required, to
+preserve the original "quick tap, no friction" point of Stars.
+
+**First tabs component anywhere in this app.** New
+`src/components/ui/Tabs.tsx` (client, plain `useState` — no external
+dependency) regroups `/teacher/classes/[classId]` into "Today" (live
+activity, attendance, give stars — default tab), "Insights" (topic
+mastery, study-buddy suggestions), and "Roster & settings" (schedule
+form, enroll/remove). **Zero data-fetching or child-component changes**
+— passing already-rendered server content as a client component's
+`content` prop works natively in the App Router (the server component
+resolves its JSX tree before handing it to the client component; `Tabs`
+never needs to re-render or serialize the underlying data), so this was
+purely a JSX regrouping of the existing page.
+
+**`Star.reason`** (nullable, migration `add_star_reason`) — `awardStar`
+gained an **optional 4th parameter**, so the existing 3-arg calls (its
+own integration test, the API route before this change) kept working
+unmodified; confirmed live via the test suite rather than assumed.
+`ClassStarSection.tsx` gained a small optional text input per student
+card, above the existing "Give a star" button — still one tap with no
+reason if that's all a teacher wants. New `getStarsForStudent` +
+`StarHistoryCard.tsx` (plain read-only list, same shape as
+`WellbeingHistoryCard`) — added to **both**
+`/teacher/students/[studentId]` and `/student/progress`, right after
+"Rank & Badges". Unlike Wellbeing (teacher-only monitoring), a star is
+recognition *given to* the student — same "the student should see it"
+logic already applied to Badges, not a new asymmetry.
+
+**Rank clarity, no renaming**: `RankLadderCard.tsx` became a client
+component (one local `useState`, props unchanged — both existing call
+sites needed zero changes). The 5-source points breakdown gained a
+plain-language rule caption per row (`10 pts / passed`, `1 pt / 2 days
+present`, `5 pts / high rating`, `20 pts / badge`, `1 pt / star`) —
+printing the exact formula that was previously only a code comment in
+`src/lib/rank.ts`'s `getPointsBreakdown`, directly next to the number
+it produced. The 6-chip full-ladder strip moved behind a "Show full
+rank ladder" toggle, collapsed by default — it's the least actionable
+part of the card (a reference overview, not "what do I do right now"),
+so hiding it is what actually reduced the card's density; current rank,
+progress bar, and the "X pts to next rank" caption stay visible always.
+
+Live-verified end-to-end via `npm test` (113 tests, 26 files — 1 new,
+confirming a star given with a reason round-trips through
+`getStarsForStudent` newest-first, one given with no reason stores
+`null` not an empty string, and the pre-existing 3-arg `awardStar`
+test kept passing unmodified) + `tsc --noEmit` + curl against the real
+running dev server logged in as both the real seeded teacher and
+student: the class detail page renders exactly 3 tabs defaulting to
+"Today"; a real star given via the actual API with a reason showed up
+correctly on **both** the teacher's profile page and the student's own
+`/student/progress` (same `StarHistoryCard`, same data, two surfaces);
+the rank card's rule captions and collapsible ladder toggle both
+rendered correctly on both pages. The one real star created on a real
+seeded student during this verification was deleted afterward.
+
+## Post-roadmap work — visual-quality pass extended to student pages + Questions (2026-07-29)
+
+Direct continuation of the console/classes visual pass — the user asked
+for the same treatment across the rest of the app, naming the student
+pages and the Questions (Doubts) feature specifically. This round was
+a systematic sweep for the same two bug classes already found on
+console/classes, not new design decisions:
+
+1. **Missing `margin-bottom` on stacked `feed-card`s**, causing zero
+   gap between adjacent cards — found and fixed on `ExamScoreTrend`
+   (shared by both `/student/progress` and the teacher profile page),
+   `DnaSummaryCard`, `RecentDoubtsCard`, `StarHistoryCard`,
+   `CheckInWidget`, and the "Rank & Badges"/"Entry history" cards
+   inline on the progress page itself. Same root cause each time: a
+   component's `Card` had no margin at all, relying on luck (nothing
+   below it) rather than a rule.
+2. **Ad hoc inline `fontSize`/spacing values bypassing the shared type
+   scale** — components that don't use the `.feed-item`/`.feed-t`
+   classes (which already inherited the new `--text-*` tokens
+   automatically once those classes were updated) had their own
+   hand-rolled `14.5`/`13.5`/`12.5`/`11.5`px clusters instead. Migrated
+   to the token scale in `DoubtInboxList`/`DoubtHistoryCard`/
+   `AskDoubtForm` (the whole Questions feature, both roles),
+   `AssignmentCard` (homework), and `MessageCard`.
+
+**Confirmed via direct file read, not assumed**: `/student/curriculum`
+is still an explicit scaffold placeholder (`STATUS: scaffold` in its
+own file comment) predating any of this work — left untouched, out of
+scope, not an oversight.
+
+No schema, logic, or test-covered behavior changed — this is styling
+only. Live-verified via curl against the real running dev server,
+logged in as both the real seeded student and teacher: all 9 student
+pages (dashboard, progress, exercises, exams, notifications, messages,
+doubts, attendance, settings) return 200 with the new token values
+present in the rendered markup; the teacher's Questions inbox and a
+real student's profile page (via `ExamScoreTrend`'s fix) both confirmed
+carrying the same tokens. `tsc --noEmit` and the full 113-test suite
+stayed green throughout (expected — no logic path was touched).
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.
@@ -2254,7 +2359,7 @@ visual-only round in this project's history.
   `add_messages`, `add_homework_assignments`, `add_doubts`,
   `add_student_badges`, `add_password_reset_and_question_topics`,
   `add_notification_seen_tracking`, `add_student_stars`,
-  `add_wellbeing_checkins` — all additive, no renames.
+  `add_wellbeing_checkins`, `add_star_reason` — all additive, no renames.
 - `var/student-photos/` (phase 2 enrollment photos) is gitignored and
   needs its own Docker volume in production, same as
   `var/screen-recordings/` — flat one-file-per-student, original format

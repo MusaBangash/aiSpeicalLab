@@ -77,7 +77,7 @@ export default async function StudentAttendancePage() {
           </div>
         </div>
         <div>
-          <Card className="mini-card" style={{ marginBottom: 16 }}>
+          <Card className="mini-card" style={{ marginBottom: "var(--space-4)" }}>
             <div className="mini-top">
               <div className="mini-icon g">
                 <Icon name="check" size={18} />
@@ -86,7 +86,7 @@ export default async function StudentAttendancePage() {
             <div className="mini-num">{termPercent}%</div>
             <div className="mini-label">Attendance this term</div>
           </Card>
-          <Card className="mini-card" style={{ marginBottom: 16 }}>
+          <Card className="mini-card" style={{ marginBottom: "var(--space-4)" }}>
             <div className="mini-top">
               <div className="mini-icon l">
                 <Icon name="clock" size={18} />

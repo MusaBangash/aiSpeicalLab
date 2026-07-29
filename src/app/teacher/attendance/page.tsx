@@ -4,10 +4,13 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { startOfDay, toDateParam, parseDateParam, getLabMonthAttendanceCells } from "@/lib/attendance";
+import { getActiveClassByStudent } from "@/lib/classes";
 import { PageHeader } from "@/components/shell/PageHeader";
+import { Card } from "@/components/ui/Card";
 import { AttendanceGridClient } from "@/components/attendance/AttendanceGridClient";
 import { MonthHeatmapGrid } from "@/components/attendance/MonthHeatmapGrid";
 import { AttendanceDateJump } from "@/components/attendance/AttendanceDateJump";
+import { ProgressRing } from "@/components/dashboard/ProgressRing";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -34,12 +37,19 @@ export default async function TeacherAttendancePage({
   const monthPrev = new Date(year, month - 1, 1);
   const monthNext = new Date(year, month + 1, 1);
 
-  const [students, records, labCells] = await Promise.all([
+  const [students, records, labCells, classByStudent] = await Promise.all([
     db.user.findMany({ where: { role: "STUDENT" }, orderBy: { name: "asc" } }),
     db.attendance.findMany({ where: { date } }),
     getLabMonthAttendanceCells(year, month),
+    getActiveClassByStudent(),
   ]);
   const byStudent = new Map(records.map((r) => [r.studentId, r]));
+
+  const presentCount = students.filter((s) => {
+    const status = byStudent.get(s.id)?.status;
+    return status === "PRESENT" || status === "LATE";
+  }).length;
+  const presentPercent = students.length > 0 ? Math.round((presentCount / students.length) * 100) : 0;
 
   return (
     <div className="page-anim">
@@ -101,9 +111,23 @@ export default async function TeacherAttendancePage({
             Next day →
           </Link>
         </div>
+
+        <Card className="ring-card" style={{ marginBottom: 16 }}>
+          <ProgressRing percent={presentPercent} label="Present" color="var(--leaf-mid)" trackColor="var(--leaf-soft)" size={100} />
+          <div className="ring-txt">
+            <h3>
+              {presentCount} of {students.length} present
+            </h3>
+            <p>
+              For {date.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })}.
+            </p>
+          </div>
+        </Card>
+
         <AttendanceGridClient
           rows={students.map((student) => {
             const rec = byStudent.get(student.id);
+            const cls = classByStudent.get(student.id);
             return {
               studentId: student.id,
               studentName: student.name,
@@ -112,6 +136,8 @@ export default async function TeacherAttendancePage({
               initialNote: rec?.note ?? null,
               initialSource: rec?.source ?? null,
               initialCheckedInAt: rec?.checkedInAt ? rec.checkedInAt.toISOString() : null,
+              classId: cls?.id ?? null,
+              studentClassName: cls?.name ?? null,
             };
           })}
         />

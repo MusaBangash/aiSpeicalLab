@@ -37,7 +37,11 @@ export function AskDoubtForm({ modules }: { modules: { id: string; title: string
   }
 
   return (
-    <form onSubmit={onSubmit} className="card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+    <form
+      onSubmit={onSubmit}
+      className="card"
+      style={{ padding: "var(--space-5)", marginBottom: "var(--space-6)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}
+    >
       <ModuleField modules={modules} moduleName={moduleName} onChange={setModuleName} />
       <textarea
         value={body}

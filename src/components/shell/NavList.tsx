@@ -11,23 +11,33 @@ export type NavItem = {
   badge?: number;
 };
 
-export function NavList({ items }: { items: NavItem[] }) {
+export type NavGroup = {
+  label?: string;
+  items: NavItem[];
+};
+
+export function NavList({ groups }: { groups: NavGroup[] }) {
   const pathname = usePathname();
 
   return (
     <>
-      {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(item.href + "/");
-        return (
-          <Link key={item.href} href={item.href} className={"nav-item" + (active ? " active" : "")}>
-            <span className="ic">
-              <Icon name={item.icon} size={20} />
-            </span>
-            {item.label}
-            {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
-          </Link>
-        );
-      })}
+      {groups.map((group, i) => (
+        <div className="nav-group" key={group.label ?? i}>
+          {group.label ? <div className="nav-group-label">{group.label}</div> : null}
+          {group.items.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            return (
+              <Link key={item.href} href={item.href} className={"nav-item" + (active ? " active" : "")}>
+                <span className="ic">
+                  <Icon name={item.icon} size={20} />
+                </span>
+                {item.label}
+                {item.badge ? <span className="nav-badge">{item.badge}</span> : null}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </>
   );
 }

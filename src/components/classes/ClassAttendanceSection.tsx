@@ -35,7 +35,7 @@ export function ClassAttendanceSection({
 
   return (
     <div>
-      <div className="journal-entry-form" style={{ marginBottom: 16 }}>
+      <div className="journal-entry-form" style={{ marginBottom: "var(--space-5)" }}>
         <button className="btn leaf" disabled={pending || rows.length === 0} onClick={() => setConfirming("PRESENT")}>
           Mark all present
         </button>

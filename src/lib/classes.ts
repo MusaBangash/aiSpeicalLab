@@ -32,6 +32,18 @@ export function resolveClassId(classes: { id: string; name: string }[], name: st
   return match ? match.id : null;
 }
 
+/** Batched active-class lookup for every student in one query — same
+ *  batching shape as getEnrollableStudents, extracted since more than
+ *  one page now needs "which class is this student currently in"
+ *  without a per-student round trip. */
+export async function getActiveClassByStudent(): Promise<Map<string, { id: string; name: string }>> {
+  const activeEnrollments = await db.classEnrollment.findMany({
+    where: { leftAt: null },
+    include: { class: { select: { id: true, name: true } } },
+  });
+  return new Map(activeEnrollments.map((e) => [e.studentId, e.class]));
+}
+
 export type RosterEntry = { enrollmentId: string; studentId: string; name: string; email: string; joinedAt: Date };
 
 export async function getClassRoster(classId: string): Promise<RosterEntry[]> {

@@ -135,7 +135,7 @@ export async function getTeacherConsole(today: Date): Promise<TeacherConsole> {
   const [studentCount, todayAttendance, exams, genderCounts, residencyCounts] = await Promise.all([
     db.user.count({ where: { role: "STUDENT" } }),
     db.attendance.findMany({ where: { date: today } }),
-    db.exam.findMany({ where: { status: "PUBLISHED" } }),
+    db.exam.findMany({ where: { status: "PUBLISHED" }, orderBy: { createdAt: "desc" } }),
     db.studentProfile.groupBy({ by: ["gender"], _count: true }),
     db.studentProfile.groupBy({ by: ["residency"], _count: true }),
   ]);

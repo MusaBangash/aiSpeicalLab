@@ -1,4 +1,5 @@
 /** Teacher: all students, exam avg + attendance %, links to each profile */
+import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -23,7 +24,9 @@ export default async function TeacherStudentsPage() {
           Add student
         </Link>
       </div>
-      <StudentsGridClient students={students} />
+      <Suspense fallback={null}>
+        <StudentsGridClient students={students} />
+      </Suspense>
     </div>
   );
 }

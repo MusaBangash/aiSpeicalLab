@@ -22,11 +22,11 @@ export default async function StudentDoubtsPage() {
       <AskDoubtForm modules={modules.map((m) => ({ id: m.id, title: m.title }))} />
 
       {doubts.length === 0 ? (
-        <div className="card" style={{ padding: 20, marginTop: 12 }}>
+        <div className="card" style={{ padding: "var(--space-5)" }}>
           No questions asked yet.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)" }}>
           {doubts.map((d) => (
             <DoubtHistoryCard key={d.id} doubt={d} />
           ))}

@@ -31,7 +31,7 @@ export async function getAtRiskStudents(today: Date = new Date()): Promise<AtRis
     getWeakestTopicByStudent(atRiskIds),
   ]);
 
-  return atRisk.map((s) => ({
+  const rows = atRisk.map((s) => ({
     id: s.id,
     name: s.name,
     avgScorePercent: s.avgScorePercent,
@@ -39,4 +39,13 @@ export async function getAtRiskStudents(today: Date = new Date()): Promise<AtRis
     scoreTrend: computeScoreTrend(examRecordsByStudent.get(s.id) ?? []),
     weakestTopic: weakestTopicByStudent.get(s.id) ?? null,
   }));
+
+  // Most urgent first — whichever of the two metrics is worse for a
+  // student determines their sort position, so a student flagged on
+  // just one metric still surfaces above one who's merely borderline
+  // on both. Matters once this list can't all fit on screen at once
+  // (see AtRiskStudentsCard's own cap).
+  return rows.sort(
+    (a, b) => Math.min(a.avgScorePercent, a.attendancePercent) - Math.min(b.avgScorePercent, b.attendancePercent)
+  );
 }

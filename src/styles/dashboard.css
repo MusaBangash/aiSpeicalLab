@@ -13,17 +13,46 @@
 }
 
 /* ---- Dashboard ---- */
+.console-greeting {
+  margin-bottom: var(--space-6);
+}
+.console-greeting-text {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+.console-greeting-sub {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--muted);
+  margin-top: var(--space-1);
+}
+.console-meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--muted);
+  padding: var(--space-3) 0;
+  margin: var(--space-2) 0 var(--space-6);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.console-meta-strip b {
+  color: var(--ink);
+  font-weight: 700;
+}
 .hero-grid {
   display: grid;
   grid-template-columns: 1.25fr 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 .ring-card {
-  padding: 22px;
+  padding: var(--space-5);
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: var(--space-5);
 }
 .ring-wrap {
   position: relative;
@@ -52,17 +81,17 @@
   letter-spacing: 0.08em;
 }
 .ring-txt h3 {
-  font-size: 16.5px;
+  font-size: var(--text-lg);
   font-weight: 700;
-  margin-bottom: 5px;
+  margin-bottom: var(--space-1);
 }
 .ring-txt p {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--muted);
   line-height: 1.55;
 }
 .mini-card {
-  padding: 20px 22px;
+  padding: var(--space-5);
   display: flex;
   flex-direction: column;
 }
@@ -70,12 +99,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
 }
 .mini-icon {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -89,15 +118,15 @@
   color: var(--leaf);
 }
 .mini-num {
-  font-size: 27px;
+  font-size: var(--text-2xl);
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 .mini-label {
-  font-size: 12.5px;
+  font-size: var(--text-sm);
   color: var(--muted);
   font-weight: 500;
-  margin-top: 2px;
+  margin-top: var(--space-1);
 }
 .att-checkin-note {
   font-size: 12.5px;
@@ -124,7 +153,8 @@
 .duo {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
-  gap: 16px;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
 }
 .continue-card {
   padding: 24px;
@@ -185,17 +215,18 @@
 }
 
 .feed-card {
-  padding: 22px;
+  padding: var(--space-5);
 }
 .feed-title {
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 700;
-  margin-bottom: 14px;
+  letter-spacing: -0.01em;
+  margin-bottom: var(--space-4);
 }
 .feed-item {
   display: flex;
-  gap: 12px;
-  padding: 10px 0;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
   border-bottom: 1px solid var(--gold-mist);
 }
 .feed-item:last-child {
@@ -220,7 +251,7 @@
 .feed-dot {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -235,20 +266,20 @@
   color: var(--leaf);
 }
 .feed-t {
-  font-size: 13.5px;
+  font-size: var(--text-md);
   font-weight: 600;
   line-height: 1.35;
 }
 .feed-s {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: var(--text-xs);
   color: var(--muted);
-  margin-top: 2px;
+  margin-top: var(--space-1);
 }
 .feed-empty {
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--muted);
-  padding: 10px 0;
+  padding: var(--space-3) 0;
 }
 
 /* ---- Curriculum ---- */
@@ -572,6 +603,7 @@
 }
 .heat-card {
   padding: 24px;
+  max-width: 420px;
 }
 .heat-grid {
   display: grid;
@@ -1057,6 +1089,25 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+.rpb-rule {
+  font-size: 10px;
+  color: var(--faint);
+  margin-top: 2px;
+}
+.rank-ladder-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--gold-deep);
+  font-family: var(--sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 0;
+  margin-top: var(--space-4);
+}
+.rank-ladder-toggle:hover {
+  text-decoration: underline;
+}
 .rank-actions {
   display: flex;
   gap: 10px;
@@ -1115,4 +1166,56 @@
 .badge-tile-date {
   font-size: 10.5px;
   color: var(--muted);
+}
+
+/* ---- Section heading ---- */
+/* For named sub-sections within a tab/page (e.g. "Live activity",
+   "Attendance — today") — previously bare <h2> tags with zero CSS,
+   relying entirely on unstyled browser defaults (this app's global
+   `* { margin: 0 }` reset even stripped their normal spacing, so they
+   sat glued directly against whatever was above/below with no
+   division at all). */
+.section-heading {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  margin: var(--space-6) 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+.section-heading:first-child {
+  margin-top: 0;
+}
+
+/* ---- Tabs ---- */
+.tabs-bar {
+  display: flex;
+  gap: var(--space-5);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--space-5);
+}
+.tab-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: var(--space-3) 2px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.tab-btn:hover {
+  color: var(--ink);
+}
+.tab-btn.active {
+  color: var(--gold-dark);
+  border-bottom-color: var(--gold);
+}
+.tab-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }

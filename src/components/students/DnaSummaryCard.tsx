@@ -8,9 +8,9 @@ export type DnaHighlight = { label: string; value: string; color?: string };
  *  used for the attendance-heatmap legend — no new CSS. */
 export function DnaSummaryCard({ summary, highlights }: { summary: string; highlights: DnaHighlight[] }) {
   return (
-    <Card className="feed-card" style={{ marginBottom: 16 }}>
+    <Card className="feed-card" style={{ marginBottom: "var(--space-6)" }}>
       <div className="feed-title">Learning DNA</div>
-      <p style={{ fontSize: 14.5, lineHeight: 1.6, margin: "4px 0 12px" }}>{summary}</p>
+      <p style={{ fontSize: "var(--text-md)", lineHeight: 1.6, margin: "var(--space-1) 0 var(--space-3)" }}>{summary}</p>
       <div className="legend">
         {highlights.map((h) => (
           <span className="lg" key={h.label}>

@@ -32,7 +32,7 @@ export function ClassesGridClient({ classes }: { classes: ClassSummary[] }) {
 
   return (
     <div>
-      <form onSubmit={createClass} className="journal-entry-form" style={{ marginBottom: 16 }}>
+      <form onSubmit={createClass} className="journal-entry-form" style={{ marginBottom: "var(--space-6)" }}>
         <input
           placeholder="Class name (e.g. Evening Batch A)"
           value={name}

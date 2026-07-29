@@ -1,21 +1,21 @@
 import type { ReactNode } from "react";
-import { NavList, type NavItem } from "./NavList";
+import { NavList, type NavItem, type NavGroup } from "./NavList";
 import { PineLogo } from "./PineLogo";
 import { SignOutForm } from "./SignOutForm";
 import { MobileNav } from "./MobileNav";
 import { initials } from "@/lib/initials";
 
-export type { NavItem };
+export type { NavItem, NavGroup };
 
 export function AppShell({
   role,
   userName,
-  navItems,
+  navGroups,
   children,
 }: {
   role: "Student" | "Teacher";
   userName: string;
-  navItems: NavItem[];
+  navGroups: NavGroup[];
   children: ReactNode;
 }) {
   return (
@@ -31,8 +31,7 @@ export function AppShell({
           </div>
         </div>
 
-        <div className="nav-label">Menu</div>
-        <NavList items={navItems} />
+        <NavList groups={navGroups} />
 
         <div className="side-foot">
           <div className="me-avatar">{initials(userName)}</div>

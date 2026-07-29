@@ -15,6 +15,7 @@ import { ClassAttendanceSection } from "@/components/classes/ClassAttendanceSect
 import { ClassStarSection } from "@/components/classes/ClassStarSection";
 import { StudyBuddyCard } from "@/components/classes/StudyBuddyCard";
 import { TopicBreakdown } from "@/components/students/TopicBreakdown";
+import { Tabs } from "@/components/ui/Tabs";
 
 export default async function TeacherClassDetailPage({
   params,
@@ -40,20 +41,50 @@ export default async function TeacherClassDetailPage({
   return (
     <div className="page-anim">
       <PageHeader title={cls.name} />
-      <ClassScheduleForm classId={classId} scheduledStartMinutes={cls.scheduledStartMinutes} />
-      <h2>Live activity</h2>
-      <ClassLivePanel classId={classId} initialStudents={toClassActivityPayload(roster, activity)} />
-      <h2>Attendance — today</h2>
-      <ClassAttendanceSection classId={classId} date={toDateParam(today)} rows={attendanceRows} />
-      <TopicBreakdown
-        rows={classTopicRows}
-        title="Class topic mastery"
-        emptyMessage="No exam attempts from this class yet."
+      <Tabs
+        tabs={[
+          {
+            id: "today",
+            label: "Today",
+            content: (
+              <>
+                <h2 className="section-heading">Live activity</h2>
+                <ClassLivePanel classId={classId} initialStudents={toClassActivityPayload(roster, activity)} />
+                <h2 className="section-heading">Attendance — today</h2>
+                <ClassAttendanceSection classId={classId} date={toDateParam(today)} rows={attendanceRows} />
+                <h2 className="section-heading">Give stars</h2>
+                <ClassStarSection classId={classId} roster={roster} />
+              </>
+            ),
+          },
+          {
+            id: "insights",
+            label: "Insights",
+            content: (
+              <>
+                <TopicBreakdown
+                  rows={classTopicRows}
+                  title="Class topic mastery"
+                  emptyMessage="No exam attempts from this class yet."
+                />
+                <StudyBuddyCard suggestions={studyBuddySuggestions} />
+              </>
+            ),
+          },
+          {
+            id: "roster",
+            label: "Roster & settings",
+            content: (
+              <>
+                <h2 className="section-heading">Class schedule</h2>
+                <ClassScheduleForm classId={classId} scheduledStartMinutes={cls.scheduledStartMinutes} />
+                <h2 className="section-heading">Roster</h2>
+                <ClassRosterClient classId={classId} roster={roster} enrollable={enrollable} />
+              </>
+            ),
+          },
+        ]}
       />
-      <StudyBuddyCard suggestions={studyBuddySuggestions} />
-      <h2>Give stars</h2>
-      <ClassStarSection classId={classId} roster={roster} />
-      <ClassRosterClient classId={classId} roster={roster} enrollable={enrollable} />
     </div>
   );
 }

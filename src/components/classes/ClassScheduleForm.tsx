@@ -37,7 +37,7 @@ export function ClassScheduleForm({
   }
 
   return (
-    <div className="journal-entry-form" style={{ marginBottom: 16 }}>
+    <div className="journal-entry-form" style={{ marginBottom: "var(--space-6)" }}>
       <label style={{ fontSize: 13, color: "var(--muted)" }}>Scheduled start (weekdays)</label>
       <input type="time" value={time} disabled={saving} onChange={(e) => setTime(e.target.value)} />
       <button className="btn" disabled={saving || !time} onClick={() => save(time)}>

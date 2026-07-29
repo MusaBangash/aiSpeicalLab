@@ -9,7 +9,7 @@ export async function ExamScoreTrend({ studentId }: { studentId: string }) {
 
   if (records.length === 0) {
     return (
-      <Card className="feed-card">
+      <Card className="feed-card" style={{ marginBottom: "var(--space-6)" }}>
         <div className="feed-title">Exam score trend</div>
         <div className="feed-empty">No exam records yet.</div>
       </Card>
@@ -26,7 +26,7 @@ export async function ExamScoreTrend({ studentId }: { studentId: string }) {
   }));
 
   return (
-    <Card className="feed-card">
+    <Card className="feed-card" style={{ marginBottom: "var(--space-6)" }}>
       <div className="feed-title">Exam score trend</div>
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} width="100%" height={HEIGHT} preserveAspectRatio="none">
         {points.length > 1 ? (

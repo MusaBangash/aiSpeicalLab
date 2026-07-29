@@ -40,9 +40,9 @@ export function CheckInWidget({
   }
 
   return (
-    <Card className="feed-card" style={{ marginBottom: 16 }}>
+    <Card className="feed-card" style={{ marginBottom: "var(--space-6)" }}>
       <div className="feed-title">How are you feeling today?</div>
-      <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "var(--space-2)", marginTop: "var(--space-2)", flexWrap: "wrap" }}>
         {MOOD_OPTIONS.map((m) => (
           <button
             key={m.value}
@@ -60,9 +60,9 @@ export function CheckInWidget({
         value={note}
         onChange={(e) => setNote(e.target.value)}
         onBlur={() => mood && submit(mood)}
-        style={{ width: "100%", marginTop: 10 }}
+        style={{ width: "100%", marginTop: "var(--space-2)" }}
       />
-      {saved ? <div style={{ color: "var(--leaf-mid)", fontWeight: 600, marginTop: 6 }}>Saved</div> : null}
+      {saved ? <div style={{ color: "var(--leaf-mid)", fontWeight: 600, marginTop: "var(--space-2)" }}>Saved</div> : null}
     </Card>
   );
 }

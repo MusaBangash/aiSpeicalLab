@@ -789,6 +789,7 @@ model Star {
   classId   String
   class     Class    @relation(fields: [classId], references: [id])
   createdAt DateTime @default(now())
+  reason    String? // optional — teacher may add why, quick-tap still works with none
 
   @@index([studentId])
   @@index([classId])

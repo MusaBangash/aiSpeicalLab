@@ -7,7 +7,7 @@
 .side {
   width: 242px;
   flex-shrink: 0;
-  background: var(--card);
+  background: linear-gradient(165deg, var(--card) 0%, var(--gold-mist) 130%);
   border-right: 1px solid var(--line);
   display: flex;
   flex-direction: column;
@@ -45,7 +45,10 @@
   margin-top: 1px;
 }
 
-.nav-label {
+.nav-group {
+  margin-bottom: var(--space-1);
+}
+.nav-group-label {
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -80,16 +83,7 @@
   background: var(--gold-soft);
   color: var(--gold-dark);
   font-weight: 600;
-}
-.nav-item.active::before {
-  content: "";
-  position: absolute;
-  left: -16px;
-  top: 8px;
-  bottom: 8px;
-  width: 4px;
-  border-radius: 0 4px 4px 0;
-  background: var(--gold);
+  box-shadow: 0 1px 5px rgba(232, 163, 23, 0.18);
 }
 .nav-item .ic {
   width: 20px;
@@ -163,16 +157,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 26px;
+  margin-bottom: var(--space-6);
 }
 .crumb h1 {
-  font-size: 24px;
+  font-size: var(--text-xl);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 .crumb .date {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--text-sm);
   color: var(--muted);
 }
 

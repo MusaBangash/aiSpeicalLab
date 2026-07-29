@@ -15,6 +15,9 @@ import { Card } from "@/components/ui/Card";
 import { Icon } from "@/components/shell/Icon";
 import { AtRiskStudentsCard } from "@/components/students/AtRiskStudentsCard";
 import { MostImprovedCard } from "@/components/students/MostImprovedCard";
+import { ProgressRing } from "@/components/dashboard/ProgressRing";
+
+const EXAM_STATS_SHOWN = 5;
 
 export default async function TeacherConsolePage() {
   const session = await auth();
@@ -27,92 +30,103 @@ export default async function TeacherConsolePage() {
     getMostImprovedStudents(today),
   ]);
 
+  const hour = today.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const firstName = session.user.name?.split(" ")[0];
+
+  const presentPercent = data.studentCount > 0 ? Math.round((data.presentToday / data.studentCount) * 100) : 0;
+  const totalAttempted = data.examStats.reduce((sum, s) => sum + s.attempted, 0);
+  const totalPassed = data.examStats.reduce((sum, s) => sum + s.passed, 0);
+  const passRatePercent = totalAttempted > 0 ? Math.round((totalPassed / totalAttempted) * 100) : 0;
+
   return (
     <div className="page-anim">
       <PageHeader title="Console" />
-      <AtRiskStudentsCard students={atRiskStudents} />
+      <div className="console-greeting">
+        <div className="console-greeting-text">
+          {greeting}{firstName ? `, ${firstName}` : ""}
+          <span className="console-greeting-sub">
+            {data.presentToday} of {data.studentCount} students present today
+            {atRiskStudents.length > 0
+              ? ` · ${atRiskStudents.length} flagged at-risk`
+              : ""}
+          </span>
+        </div>
+      </div>
+      <AtRiskStudentsCard students={atRiskStudents} viewAllHref="/teacher/students?risk=1" />
       <MostImprovedCard students={mostImproved} />
       <div className="hero-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
-        <Card className="mini-card">
-          <div className="mini-top">
-            <div className="mini-icon g">
-              <Icon name="check" size={20} />
-            </div>
+        <Card className="ring-card">
+          <ProgressRing
+            percent={presentPercent}
+            label="Present today"
+            color="var(--leaf-mid)"
+            trackColor="var(--leaf-soft)"
+            size={100}
+          />
+          <div className="ring-txt">
+            <h3>
+              {data.presentToday} of {data.studentCount} present
+            </h3>
+            <p>Attendance marked so far today.</p>
           </div>
-          <div className="mini-num">
-            {data.presentToday} / {data.studentCount}
-          </div>
-          <div className="mini-label">Present today</div>
         </Card>
-        <Card className="mini-card">
-          <div className="mini-top">
-            <div className="mini-icon l">
-              <Icon name="award" size={20} />
-            </div>
+        <Card className="ring-card">
+          <ProgressRing percent={passRatePercent} label="Pass rate" color="var(--gold)" trackColor="var(--gold-soft)" size={100} />
+          <div className="ring-txt">
+            <h3>
+              {totalPassed} of {totalAttempted} passed
+            </h3>
+            <p>Across {data.examStats.length} published exam{data.examStats.length === 1 ? "" : "s"}.</p>
           </div>
-          <div className="mini-num">{data.examStats.length}</div>
-          <div className="mini-label">Published exams</div>
-        </Card>
-      </div>
-
-      {/* Profiled students only — students enrolled before this feature existed have no StudentProfile row, so these counts can be lower than studentCount above. */}
-      <div className="hero-grid" style={{ gridTemplateColumns: "1fr 1fr 1fr 1fr", marginTop: 16 }}>
-        <Card className="mini-card">
-          <div className="mini-top">
-            <div className="mini-icon l">
-              <Icon name="people" size={20} />
-            </div>
-          </div>
-          <div className="mini-num">{data.girlsCount}</div>
-          <div className="mini-label">Girls</div>
-        </Card>
-        <Card className="mini-card">
-          <div className="mini-top">
-            <div className="mini-icon l">
-              <Icon name="people" size={20} />
-            </div>
-          </div>
-          <div className="mini-num">{data.boysCount}</div>
-          <div className="mini-label">Boys</div>
-        </Card>
-        <Card className="mini-card">
-          <div className="mini-top">
-            <div className="mini-icon g">
-              <Icon name="people" size={20} />
-            </div>
-          </div>
-          <div className="mini-num">{data.hostelizedCount}</div>
-          <div className="mini-label">Hostelized</div>
-        </Card>
-        <Card className="mini-card">
-          <div className="mini-top">
-            <div className="mini-icon g">
-              <Icon name="people" size={20} />
-            </div>
-          </div>
-          <div className="mini-num">{data.dayScholarCount}</div>
-          <div className="mini-label">Day scholar</div>
         </Card>
       </div>
 
-      <Card className="feed-card" style={{ marginBottom: 16 }}>
-        <div className="feed-title">Exam pass rates</div>
+      {/* Profiled students only — students enrolled before this feature existed have no StudentProfile row, so these counts can be lower than studentCount above. Kept as a quiet reference strip, not full-size stat cards — this isn't something acted on day-to-day. */}
+      <div className="console-meta-strip">
+        <span>
+          <b>{data.girlsCount}</b> girls
+        </span>
+        <span>
+          <b>{data.boysCount}</b> boys
+        </span>
+        <span>
+          <b>{data.hostelizedCount}</b> hostelized
+        </span>
+        <span>
+          <b>{data.dayScholarCount}</b> day scholar
+        </span>
+      </div>
+
+      <Card className="feed-card" style={{ marginBottom: "var(--space-6)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="feed-title" style={{ marginBottom: 0 }}>
+            Exam pass rates
+          </div>
+          {data.examStats.length > EXAM_STATS_SHOWN ? (
+            <Link href="/teacher/exams" style={{ fontSize: 13 }}>
+              View all {data.examStats.length}
+            </Link>
+          ) : null}
+        </div>
         {data.examStats.length === 0 ? (
           <div className="feed-empty">No published exams yet.</div>
         ) : (
-          data.examStats.map((stat, i) => (
-            <div key={i} className="feed-item">
-              <div className="feed-dot l">
-                <Icon name="trophy" size={16} />
-              </div>
-              <div>
-                <div className="feed-t">{stat.title}</div>
-                <div className="feed-s">
-                  {stat.passed} / {stat.attempted} passed
+          <div style={{ marginTop: "var(--space-3)" }}>
+            {data.examStats.slice(0, EXAM_STATS_SHOWN).map((stat, i) => (
+              <div key={i} className="feed-item">
+                <div className="feed-dot l">
+                  <Icon name="trophy" size={16} />
+                </div>
+                <div>
+                  <div className="feed-t">{stat.title}</div>
+                  <div className="feed-s">
+                    {stat.passed} / {stat.attempted} passed
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </Card>
 
