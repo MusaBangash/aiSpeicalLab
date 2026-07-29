@@ -267,16 +267,20 @@ export type TopicBreakdownRow = {
 };
 
 /**
- * Per-topic strength/weakness across EVERY attempt a student has ever made
- * (all retries, not just the latest/official one per exam) — a deliberate
- * departure from the ExamRecord-latest-attempt convention used elsewhere
- * (avg score, exams passed). This is a historical struggle-frequency view,
- * not a current-standing view. A question's effective topic is its own
- * moduleId if explicitly tagged, else the whole exam's moduleId.
+ * Shared by getStudentTopicBreakdown/getClassTopicBreakdown — per-topic
+ * strength/weakness across EVERY attempt any of the given students has
+ * ever made (all retries, not just the latest/official one per exam) —
+ * a deliberate departure from the ExamRecord-latest-attempt convention
+ * used elsewhere (avg score, exams passed). This is a historical
+ * struggle-frequency view, not a current-standing view. A question's
+ * effective topic is its own moduleId if explicitly tagged, else the
+ * whole exam's moduleId.
  */
-export async function getStudentTopicBreakdown(studentId: string): Promise<TopicBreakdownRow[]> {
+async function computeTopicBreakdown(studentIds: string[]): Promise<TopicBreakdownRow[]> {
+  if (studentIds.length === 0) return [];
+
   const attempts = await db.examAttempt.findMany({
-    where: { studentId, status: { in: ["SUBMITTED", "AUTO_SUBMITTED"] } },
+    where: { studentId: { in: studentIds }, status: { in: ["SUBMITTED", "AUTO_SUBMITTED"] } },
     select: { id: true, questionIds: true },
   });
   if (attempts.length === 0) return [];
@@ -322,6 +326,18 @@ export async function getStudentTopicBreakdown(studentId: string): Promise<Topic
       percentCorrect: Math.round((100 * correct) / total),
     }))
     .sort((a, b) => a.percentCorrect - b.percentCorrect);
+}
+
+export async function getStudentTopicBreakdown(studentId: string): Promise<TopicBreakdownRow[]> {
+  return computeTopicBreakdown([studentId]);
+}
+
+/** Class-wide counterpart — one row per topic aggregated across every
+ *  given student's attempts, for lesson-planning ("this class struggles
+ *  with X"), not individual diagnosis. Same batch-not-N+1 shape as
+ *  getClassActivity (src/lib/activity.ts) relative to getStudentActivity. */
+export async function getClassTopicBreakdown(studentIds: string[]): Promise<TopicBreakdownRow[]> {
+  return computeTopicBreakdown(studentIds);
 }
 
 /**

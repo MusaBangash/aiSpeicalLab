@@ -1633,6 +1633,62 @@ correctly, with the profile pages showing byte-identical "Stars: 3" rows.
 All 3 test stars and the temporary teacher account were deleted after
 verification, confirmed reverted to 0 afterward.
 
+## Post-roadmap work — class-wide topic mastery map (2026-07-28)
+
+First of an agreed 7-feature sequence (early-warning at-risk list,
+wellbeing check-in, class topic mastery, unlockable profile
+customization, certificates, most-improved leaderboard, study-buddy
+pairing — sequenced cheapest/most-reuse-first). Teachers previously only
+saw per-student topic strength/weakness (`TopicBreakdown` on each
+student's own profile page) — no whole-class view existed to tell a
+teacher "this class collectively struggles with X" for lesson planning.
+Needed **zero new data collection or schema** — purely a different
+aggregation of exam-attempt data that already existed.
+
+**`getStudentTopicBreakdown` (`src/lib/exam.ts`) was ~45 lines of
+querying/tallying logic for one student** — a class-wide version needed
+the identical logic scoped to `studentId: { in: studentIds } }` instead
+of a single id. Copy-pasting the whole function would have been real
+duplication (not the "three similar lines" this codebase tolerates), so
+the shared body was extracted into a private `computeTopicBreakdown(studentIds:
+string[])`, with `getStudentTopicBreakdown` becoming a one-line wrapper
+(`computeTopicBreakdown([studentId])`) and a new `getClassTopicBreakdown(studentIds)`
+calling the same helper directly — the exact "batch counterpart" shape
+`getClassActivity` already has relative to `getStudentActivity`.
+`getStudentTopicBreakdown`'s public signature, behavior, and every
+existing caller are completely unchanged.
+
+**`TopicBreakdown.tsx` needed no new component at all** — since
+`getClassTopicBreakdown` returns the identical `TopicBreakdownRow[]`
+shape the existing component already renders, the same component serves
+both surfaces. Only its two hardcoded strings ("Topic strength &
+weakness" / "No exam attempts yet.") became optional `title`/`emptyMessage`
+props, defaulting to those exact strings — zero visual change on either
+existing profile page, confirmed live. Wired into
+`/teacher/classes/[classId]` right after the existing "Attendance —
+today" section (no new `<h2>` wrapper — the component's own internal
+`.feed-title` is the heading, matching how the two profile pages already
+use it), fed by adding `getClassTopicBreakdown(roster.map(r =>
+r.studentId))` to the page's existing `Promise.all` fetch block
+alongside `getClassActivity`/`getClassAttendanceRows` — no new query
+round-trip pattern introduced.
+
+Live-verified end-to-end via `npm test` (102 tests, 22 files — 2 new,
+confirming cross-student aggregation produces ONE combined row per
+topic rather than one row per student, an empty roster returns `[]`
+without querying, and — critically — the pre-existing
+`getStudentTopicBreakdown` integration test still passes completely
+unmodified, proving the extraction didn't change that function's
+behavior) + `tsc --noEmit` + curl against the real running dev server:
+loaded a real class ("Morning Batch B," one real enrolled student,
+Ahmad Ali) and confirmed the new "Class topic mastery" card rendered
+"Neural network basics — 2/8 (25%)" — byte-identical to what that same
+student's own profile page independently shows in "Topic strength &
+weakness," proving the aggregation is correct at n=1; confirmed both
+existing profile pages still render the unchanged default title. No
+test data was created or needed cleanup — this feature only reads
+already-existing exam-attempt data.
+
 ## Dev environment
 
 - Postgres runs in a local Docker container (`stlab-db`), not on the host.

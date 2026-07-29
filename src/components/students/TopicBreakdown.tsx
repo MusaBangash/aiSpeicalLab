@@ -1,19 +1,27 @@
 import type { TopicBreakdownRow } from "@/lib/exam";
 import { Card } from "@/components/ui/Card";
 
-export function TopicBreakdown({ rows }: { rows: TopicBreakdownRow[] }) {
+export function TopicBreakdown({
+  rows,
+  title = "Topic strength & weakness",
+  emptyMessage = "No exam attempts yet.",
+}: {
+  rows: TopicBreakdownRow[];
+  title?: string;
+  emptyMessage?: string;
+}) {
   if (rows.length === 0) {
     return (
       <Card className="feed-card">
-        <div className="feed-title">Topic strength &amp; weakness</div>
-        <div className="feed-empty">No exam attempts yet.</div>
+        <div className="feed-title">{title}</div>
+        <div className="feed-empty">{emptyMessage}</div>
       </Card>
     );
   }
 
   return (
     <Card className="feed-card">
-      <div className="feed-title">Topic strength &amp; weakness</div>
+      <div className="feed-title">{title}</div>
       {rows.map((r) => (
         <div key={r.moduleId} style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 6 }}>
